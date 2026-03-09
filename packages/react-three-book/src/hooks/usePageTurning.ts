@@ -1,63 +1,41 @@
-/**
- * usePageTurning — attaches pointer events to the R3F canvas that let the
- * user drag pages to turn them.  Optionally disables an OrbitControls ref
- * while a turn is in progress so the drag doesn't also orbit the scene.
- *
- * Usage (standalone):
- *
- *   const orbitRef = useRef(null);
- *   usePageTurning(bookRef, { orbitControlsRef: orbitRef });
- *   <OrbitControls ref={orbitRef} />
- *
- * Or via <BookInteraction> if you prefer a declarative style.
- */
-
 import { useEffect, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Book as ThreeBook } from '../core/Book';
 
 export interface UsePageTurningOptions {
-  /** When false, pointer events are ignored.  Defaults to true. */
+  /** Disable pointer events without unmounting. Default: true. */
   enabled?: boolean;
-  /**
-   * Ref to an OrbitControls instance (or any object with an `enabled` flag).
-   * Its `enabled` property is set to false while dragging so the orbit camera
-   * doesn't fight with the page-turning gesture.
-   */
+  /** OrbitControls ref — disabled during drag, re-enabled on release. */
   orbitControlsRef?: React.RefObject<{ enabled: boolean } | null>;
 }
 
 /**
- * Wires pointer events on the R3F canvas to `book.startTurning`,
- * `book.updateTurning`, and `book.stopTurning`.
- *
- * @param bookRef  Ref to the ThreeBook instance.
- * @param options  See {@link UsePageTurningOptions}.
+ * Attaches pointer-drag events on the R3F canvas for interactive page turning.
+ * Prefer the declarative `<BookInteraction>` component unless you need raw access.
  */
 export function usePageTurning(
   bookRef: React.RefObject<ThreeBook | null>,
-  options: UsePageTurningOptions = {},
+  { enabled = true, orbitControlsRef }: UsePageTurningOptions = {},
 ): void {
-  const { enabled = true, orbitControlsRef } = options;
   const { gl, camera } = useThree();
-
   const isDownRef = useRef(false);
   const selectedRef = useRef<ThreeBook | null>(null);
-  // Keep a stable ref so the event handlers don't need to be recreated when
-  // `enabled` toggles.
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
 
   useEffect(() => {
     const canvas = gl.domElement;
+    const raycaster = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
 
     const makeRay = (e: PointerEvent): THREE.Ray => {
       const rect = canvas.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+      ndc.set(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1,
+      );
+      raycaster.setFromCamera(ndc, camera);
       return raycaster.ray;
     };
 
@@ -89,7 +67,6 @@ export function usePageTurning(
     canvas.addEventListener('pointerdown', onDown);
     canvas.addEventListener('pointermove', onMove);
     canvas.addEventListener('pointerup', onUp);
-
     return () => {
       canvas.removeEventListener('pointerdown', onDown);
       canvas.removeEventListener('pointermove', onMove);

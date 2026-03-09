@@ -1,70 +1,33 @@
-/**
- * <BookInteraction> — declarative scene component that wires up pointer
- * events for interactive page turning.
- *
- * Place it anywhere inside the R3F <Canvas> (it renders nothing to the scene).
- * It picks up the nearest <Book> context automatically, or you can pass an
- * explicit `bookRef`.
- *
- * Typical usage (inside <Book>):
- *
- *   <Book ref={bookRef} ...>
- *     <BookInteraction orbitControlsRef={orbitRef} />
- *   </Book>
- *
- * Standalone usage (outside <Book>, e.g. with useBookRef):
- *
- *   <BookInteraction bookRef={bookRef} orbitControlsRef={orbitRef} />
- */
-
+import { useRef } from 'react';
 import type { Book as ThreeBook } from './core/Book';
 import { useBook } from './context';
 import { usePageTurning } from './hooks/usePageTurning';
 
 export interface BookInteractionProps {
-  /**
-   * Explicit book ref.  If omitted, the nearest `<Book>` context is used.
-   * One of `bookRef` or a parent `<Book>` is required.
-   */
+  /** Explicit book ref. If omitted, the nearest `<Book>` context is used. */
   bookRef?: React.RefObject<ThreeBook | null>;
-
-  /**
-   * When false, all pointer events are ignored.  Defaults to true.
-   * You can toggle this at runtime (e.g. to disable turning from a UI button)
-   * without unmounting the component.
-   */
+  /** Disable turning without unmounting. Default: true. */
   enabled?: boolean;
-
-  /**
-   * Ref to an OrbitControls instance (or any object with an `enabled` flag).
-   * Orbit is disabled while the user drags a page so the two gestures don't
-   * conflict; it is re-enabled on pointer-up.
-   */
+  /** OrbitControls ref — disabled during drag, re-enabled on release. */
   orbitControlsRef?: React.RefObject<{ enabled: boolean } | null>;
 }
 
 /**
- * Attaches pointer-event listeners to the R3F canvas for interactive page
- * turning.  Renders null — has no visual output.
+ * Wires pointer-drag events for interactive page turning. Renders nothing.
+ *
+ * Place inside `<Book>` to pick up the book automatically:
+ *   <Book ...><BookInteraction orbitControlsRef={orbitRef} /></Book>
+ *
+ * Or pass an explicit ref when used outside a `<Book>` tree:
+ *   <BookInteraction bookRef={bookRef} orbitControlsRef={orbitRef} />
  */
-export function BookInteraction({
-  bookRef: externalRef,
-  enabled = true,
-  orbitControlsRef,
-}: BookInteractionProps) {
-  // Merge explicit ref + context book into a stable ref-like object so
-  // usePageTurning always has a single RefObject to work with.
-  const contextBook = useBook();
+export function BookInteraction({ bookRef: externalRef, enabled = true, orbitControlsRef }: BookInteractionProps) {
+  const ctx = useBook();
 
-  // Build a fake RefObject whose .current always resolves to the right book.
-  // This avoids calling hooks conditionally while still supporting both modes.
-  const resolvedRef: React.RefObject<ThreeBook | null> = externalRef ?? {
-    get current() {
-      return contextBook;
-    },
-  };
+  // Stable ref whose .current always resolves to whichever book is active.
+  const resolvedRef = useRef<ThreeBook | null>(null);
+  resolvedRef.current = externalRef?.current ?? ctx;
 
   usePageTurning(resolvedRef, { enabled, orbitControlsRef });
-
   return null;
 }

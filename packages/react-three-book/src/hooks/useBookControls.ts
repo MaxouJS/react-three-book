@@ -1,80 +1,37 @@
-/**
- * useBookControls — stable imperative handles for the most common book
- * control operations (open progress, page navigation, etc.).
- *
- * All callbacks are stable across renders (wrapped in useCallback).
- *
- * Usage:
- *
- *   const { setOpenProgress, turnNext, turnPrev } = useBookControls(bookRef);
- *   // or inside a <Book> tree:
- *   const { setOpenProgress } = useBookControls();
- */
-
 import { useCallback } from 'react';
 import type { Book as ThreeBook } from '../core/Book';
 import { useBook } from '../context';
 
 export interface BookControls {
-  /**
-   * Instantly jumps the book to the given open-progress position.
-   * 0 = fully closed (all pages on the right stack),
-   * 1 = fully open (all pages on the left stack).
-   */
+  /** Jump to open progress 0–1 (0 = closed, 1 = fully open). */
   setOpenProgress: (progress: number) => void;
-
-  /**
-   * Jumps to the page identified by a paper-side index
-   * (as returned by `book.getActivePaperSideIndices`).
-   */
+  /** Jump to a specific paper-side index. */
   setOpenProgressByIndex: (index: number) => void;
-
-  /**
-   * Stops any in-progress interactive turn and releases the selected paper.
-   */
+  /** Cancel any in-progress interactive drag turn. */
   stopTurning: () => void;
-
-  /**
-   * Removes all queued auto-turns without stopping the one currently playing.
-   */
-  cancelAutoTurns: () => void;
 }
 
 /**
- * Returns stable imperative controls for a ThreeBook instance.
- *
- * @param bookRef  Optional explicit ref.  If omitted, the nearest
- *                 `<Book>` context is used.
+ * Stable imperative controls for open-progress and drag-turn management.
+ * Reads from the nearest `<Book>` context, or from an explicit ref.
  */
-export function useBookControls(
-  bookRef?: React.RefObject<ThreeBook | null>,
-): BookControls {
-  const contextBook = useBook();
-
-  const getBook = useCallback(
-    () => bookRef?.current ?? contextBook,
-    [bookRef, contextBook],
-  );
+export function useBookControls(bookRef?: React.RefObject<ThreeBook | null>): BookControls {
+  const ctx = useBook();
 
   const setOpenProgress = useCallback(
-    (progress: number) => getBook()?.setOpenProgress(progress),
-    [getBook],
+    (progress: number) => (bookRef?.current ?? ctx)?.setOpenProgress(progress),
+    [bookRef, ctx],
   );
 
   const setOpenProgressByIndex = useCallback(
-    (index: number) => getBook()?.setOpenProgressByIndex(index),
-    [getBook],
+    (index: number) => (bookRef?.current ?? ctx)?.setOpenProgressByIndex(index),
+    [bookRef, ctx],
   );
 
   const stopTurning = useCallback(
-    () => getBook()?.stopTurning(),
-    [getBook],
+    () => (bookRef?.current ?? ctx)?.stopTurning(),
+    [bookRef, ctx],
   );
 
-  const cancelAutoTurns = useCallback(
-    () => getBook()?.cancelPendingAutoTurns(),
-    [getBook],
-  );
-
-  return { setOpenProgress, setOpenProgressByIndex, stopTurning, cancelAutoTurns };
+  return { setOpenProgress, setOpenProgressByIndex, stopTurning };
 }
