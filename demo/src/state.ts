@@ -1,12 +1,9 @@
 import { BookDirection } from '@objectifthunes/react-three-book';
+import type { ImageFitMode } from '@objectifthunes/react-three-book';
 
-export type DirectionOption =
-  | 'left-to-right'
-  | 'right-to-left'
-  | 'up-to-down'
-  | 'down-to-up';
+export type { ImageFitMode };
 
-export type ImageFitMode = 'contain' | 'cover' | 'fill';
+export type DirectionOption = 'left-to-right' | 'right-to-left' | 'up-to-down' | 'down-to-up';
 
 export interface ImageSlot {
   image: HTMLImageElement | null;
@@ -72,29 +69,17 @@ export const defaultParams: DemoParams = {
   sunZ: 5,
 };
 
-export function toBookDirection(direction: DirectionOption): BookDirection {
-  switch (direction) {
-    case 'right-to-left': return BookDirection.RightToLeft;
-    case 'up-to-down':    return BookDirection.UpToDown;
-    case 'down-to-up':    return BookDirection.DownToUp;
-    case 'left-to-right':
-    default:              return BookDirection.LeftToRight;
-  }
-}
+export const DIRECTION_TO_BOOK_DIRECTION: Record<DirectionOption, BookDirection> = {
+  'left-to-right': BookDirection.LeftToRight,
+  'right-to-left': BookDirection.RightToLeft,
+  'up-to-down':    BookDirection.UpToDown,
+  'down-to-up':    BookDirection.DownToUp,
+};
 
-export function createImageSlot(): ImageSlot {
-  return {
-    image: null,
-    objectUrl: null,
-    useImage: false,
-    fitMode: 'cover',
-    fullBleed: true,
-  };
-}
-
-export function clearImageSlot(slot: ImageSlot): void {
-  if (slot.objectUrl) URL.revokeObjectURL(slot.objectUrl);
-  slot.objectUrl = null;
-  slot.image = null;
-  slot.useImage = false;
-}
+export const EMPTY_SLOT: ImageSlot = {
+  image: null,
+  objectUrl: null,
+  useImage: false,
+  fitMode: 'cover',
+  fullBleed: true,
+};

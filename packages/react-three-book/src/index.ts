@@ -44,6 +44,12 @@ export type { AutoTurnControls } from './hooks/useAutoTurn';
 export { useBookState } from './hooks/useBookState';
 export type { BookState } from './hooks/useBookState';
 
+export { useBookContent } from './hooks/useBookContent';
+
+// ── Texture utilities ──────────────────────────────────────────────────────────
+export { drawImageWithFit, createPageTexture, loadImage } from './textureUtils';
+export type { ImageFitMode, LoadedImage } from './textureUtils';
+
 // ── Core library (re-exported for consumers that need raw Three.js types) ─────
 export { Book as ThreeBook, BookHeightException } from './core/Book';
 export type { BookOptions, BookRaycastHit, PaperSetupInit } from './core/Book';
