@@ -1,0 +1,8 @@
+{
+  "name": "react-three-book-workspace",
+  "private": true,
+  "scripts": {
+    "build": "pnpm --filter @objectifthunes/react-three-book build",
+    "dev": "pnpm --filter @objectifthunes/react-three-book build && pnpm --filter react-three-book-demo dev"
+  }
+}
