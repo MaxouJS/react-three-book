@@ -10,7 +10,7 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "files": ["dist"],
+  "files": ["dist", "README.md"],
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc --noEmit",
