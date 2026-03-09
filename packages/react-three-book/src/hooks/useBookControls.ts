@@ -12,7 +12,7 @@
  */
 
 import { useCallback } from 'react';
-import type { Book as ThreeBook } from '@objectifthunes/three-book';
+import type { Book as ThreeBook } from '../core/Book';
 import { useBook } from '../context';
 
 export interface BookControls {

@@ -12,8 +12,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Book as ThreeBook } from '@objectifthunes/three-book';
-import type { BookOptions } from '@objectifthunes/three-book';
+import { Book as ThreeBook } from '../core/Book';
+import type { BookOptions } from '../core/Book';
 
 export interface UseBookRefResult {
   /** Ref to the ThreeBook instance (null until init succeeds). */

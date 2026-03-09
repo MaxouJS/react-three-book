@@ -15,7 +15,7 @@
 import { useEffect, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import type { Book as ThreeBook } from '@objectifthunes/three-book';
+import type { Book as ThreeBook } from '../core/Book';
 
 export interface UsePageTurningOptions {
   /** When false, pointer events are ignored.  Defaults to true. */

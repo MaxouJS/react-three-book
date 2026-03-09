@@ -17,8 +17,9 @@ import { useCallback } from 'react';
 import {
   AutoTurnDirection,
   AutoTurnSettings,
-} from '@objectifthunes/three-book';
-import type { AutoTurnSetting, Book as ThreeBook } from '@objectifthunes/three-book';
+} from '../core/AutoTurn';
+import type { AutoTurnSetting } from '../core/AutoTurn';
+import type { Book as ThreeBook } from '../core/Book';
 import { useBook } from '../context';
 
 export interface AutoTurnControls {

@@ -49,10 +49,6 @@ importers:
         version: 6.4.1
 
   packages/react-three-book:
-    dependencies:
-      '@objectifthunes/three-book':
-        specifier: file:../../../three-book/packages/three-book
-        version: file:../three-book/packages/three-book(three@0.172.0)
     devDependencies:
       '@react-three/fiber':
         specifier: ^8.17.0
@@ -360,11 +356,6 @@ packages:
     resolution: {integrity: sha512-2Z0FATFHaoYJ8b+Y4y4Hgfn3FRFwuU5zRrk+9dFWp4uGAdHGqVEdP7HP+gLA3X469KXHmfupJaUbKo1b/aDKIg==}
     peerDependencies:
       three: '>= 0.159.0'
-
-  '@objectifthunes/three-book@file:../three-book/packages/three-book':
-    resolution: {directory: ../three-book/packages/three-book, type: directory}
-    peerDependencies:
-      three: '>=0.150.0'
 
   '@react-spring/animated@9.7.5':
     resolution: {integrity: sha512-Tqrwz7pIlsSDITzxoLS3n/v/YCUHQdOIKtOJf4yL6kYVSDTSmVK1LI1Q3M/uu2Sx4X3pIWF3xLUhlsA6SPNTNg==}
@@ -1599,10 +1590,6 @@ snapshots:
   '@monogrid/gainmap-js@3.4.0(three@0.172.0)':
     dependencies:
       promise-worker-transferable: 1.0.4
-      three: 0.172.0
-
-  '@objectifthunes/three-book@file:../three-book/packages/three-book(three@0.172.0)':
-    dependencies:
       three: 0.172.0
 
   '@react-spring/animated@9.7.5(react@18.3.1)':

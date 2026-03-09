@@ -29,8 +29,8 @@
 
 import { forwardRef, useImperativeHandle } from 'react';
 import type { ReactNode } from 'react';
-import { Book as ThreeBook } from '@objectifthunes/three-book';
-import type { BookOptions } from '@objectifthunes/three-book';
+import { Book as ThreeBook } from './core/Book';
+import type { BookOptions } from './core/Book';
 import { useBookRef } from './hooks/useBookRef';
 import { BookContext } from './context';
 

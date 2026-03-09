@@ -1,29 +1,24 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // @objectifthunes/react-three-book
 //
-// R3F wrapper for @objectifthunes/three-book.
-//
 // Components
 //   <Book>             — main scene component (lifecycle + context provider)
 //   <BookInteraction>  — pointer-event wiring for interactive page turning
 //
 // Context
-//   BookContext        — React context carrying the ThreeBook instance
+//   BookContext        — React context carrying the Book instance
 //   useBook()          — safe access (returns null outside a <Book> tree)
 //   useRequiredBook()  — throws outside a <Book> tree
 //
 // Hooks (must be called inside a <Canvas>)
-//   useBookRef()       — create + manage a ThreeBook without JSX
+//   useBookRef()       — create + manage a Book without JSX
 //   usePageTurning()   — attach pointer events for page dragging
 //   useBookControls()  — setOpenProgress, stopTurning, cancelAutoTurns, …
 //   useAutoTurn()      — turnNext, turnPrev, turnAll, startAutoTurning, …
 //   useBookState()     — reactive snapshot (isTurning, isIdle, paperCount, …)
-//
-// All types and classes from @objectifthunes/three-book are re-exported so
-// consumers only need one import path.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ── Components ────────────────────────────────────────────────────────────────
+// ── R3F Components ────────────────────────────────────────────────────────────
 export { Book } from './Book';
 export type { BookProps } from './Book';
 
@@ -49,40 +44,25 @@ export type { AutoTurnControls } from './hooks/useAutoTurn';
 export { useBookState } from './hooks/useBookState';
 export type { BookState } from './hooks/useBookState';
 
-// ── Re-exports from @objectifthunes/three-book ────────────────────────────────
-// Consumers get all three-book types and classes from this single package.
+// ── Core library (re-exported for consumers that need raw Three.js types) ─────
+export { Book as ThreeBook, BookHeightException } from './core/Book';
+export type { BookOptions, BookRaycastHit, PaperSetupInit } from './core/Book';
 
-export {
-  // Book class (as ThreeBook alias to avoid name clash with the R3F component)
-  Book as ThreeBook,
-  BookHeightException,
-} from '@objectifthunes/three-book';
-export type { BookOptions, BookRaycastHit, PaperSetupInit } from '@objectifthunes/three-book';
+export { BookContent } from './core/BookContent';
+export { BookDirection } from './core/BookDirection';
+export { BookBinding, BookBound } from './core/BookBinding';
+export { StapleBookBound, StapleBookBinding, StapleSetup } from './core/StapleBinding';
 
-export {
-  BookContent,
-  BookDirection,
-  BookBinding,
-  BookBound,
-  StapleBookBinding,
-  StapleBookBound,
-  StapleSetup,
-} from '@objectifthunes/three-book';
+export { Paper } from './core/Paper';
+export { PaperSetup } from './core/PaperSetup';
+export { PaperUVMargin } from './core/PaperUVMargin';
+export { PaperMeshData } from './core/PaperMeshData';
+export { PaperMaterialData } from './core/PaperMaterialData';
+export { PaperPattern } from './core/PaperPattern';
+export { PaperNode } from './core/PaperNode';
+export { PaperSeam, PaperBorder, PaperNodeMargin } from './core/PaperStructs';
 
-export {
-  Paper,
-  PaperSetup,
-  PaperUVMargin,
-  PaperMeshData,
-  PaperMaterialData,
-  PaperPattern,
-  PaperNode,
-  PaperSeam,
-  PaperBorder,
-  PaperNodeMargin,
-} from '@objectifthunes/three-book';
-
-export { Cylinder } from '@objectifthunes/three-book';
+export { Cylinder } from './core/Cylinder';
 
 export {
   AutoTurnDirection,
@@ -92,15 +72,9 @@ export {
   AutoTurnSettingMode,
   AutoTurnSettingCurveTimeMode,
   AnimationCurve,
-} from '@objectifthunes/three-book';
-export type { Keyframe } from '@objectifthunes/three-book';
+} from './core/AutoTurn';
+export type { Keyframe } from './core/AutoTurn';
 
-export {
-  BookRenderer,
-  RendererFactory,
-  MeshFactory,
-  PaperMeshDataPool,
-  PageContent,
-  SpritePageContent2,
-} from '@objectifthunes/three-book';
-export type { IPageContent } from '@objectifthunes/three-book';
+export { BookRenderer, RendererFactory, MeshFactory, PaperMeshDataPool } from './core/Renderer';
+export type { IPageContent } from './core/PageContent';
+export { PageContent, SpritePageContent2 } from './core/PageContent';

@@ -21,9 +21,7 @@
     "react": ">=18.0.0",
     "@react-three/fiber": ">=8.0.0"
   },
-  "dependencies": {
-    "@objectifthunes/three-book": "file:../../../three-book/packages/three-book"
-  },
+  "dependencies": {},
   "devDependencies": {
     "three": "^0.172.0",
     "@types/three": "^0.172.0",

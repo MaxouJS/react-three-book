@@ -17,7 +17,7 @@
  *   <BookInteraction bookRef={bookRef} orbitControlsRef={orbitRef} />
  */
 
-import type { Book as ThreeBook } from '@objectifthunes/three-book';
+import type { Book as ThreeBook } from './core/Book';
 import { useBook } from './context';
 import { usePageTurning } from './hooks/usePageTurning';
 
