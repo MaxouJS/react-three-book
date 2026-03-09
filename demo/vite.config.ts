@@ -14,6 +14,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   resolve: {
+    dedupe: ['three'],
     alias: {
       '@objectifthunes/react-three-book': path.resolve(__dirname, '../src/index.tsx'),
     },
