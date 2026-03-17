@@ -11,38 +11,42 @@ interface RightPanelProps {
   onPageSlotChange: (index: number, updater: (slot: ImageSlot) => ImageSlot) => void;
 }
 
-function renderThumbnail(slot: ImageSlot, color: string): string {
+function renderThumbnail(slot: ImageSlot, color: string, aspectW: number, aspectH: number): string {
+  const thumbH = 64;
+  const thumbW = Math.round(thumbH * (aspectW / aspectH));
   const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 128;
+  canvas.width = thumbW * 2;
+  canvas.height = thumbH * 2;
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = color;
-  ctx.fillRect(0, 0, 128, 128);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   if (slot.useImage && slot.image) {
-    const m = slot.fullBleed ? 0 : 14;
-    drawImageWithFit(ctx, slot.image, m, m, 128 - m * 2, 128 - m * 2, slot.fitMode);
+    const m = slot.fullBleed ? 0 : Math.round(Math.min(canvas.width, canvas.height) * 0.11);
+    drawImageWithFit(ctx, slot.image, m, m, canvas.width - m * 2, canvas.height - m * 2, slot.fitMode);
   }
   return canvas.toDataURL();
 }
 
-const THUMB_STYLE: React.CSSProperties = { width: 64, height: 64, borderRadius: 6, objectFit: 'cover', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(236,242,255,0.15)', flexShrink: 0 };
 const CARD_STYLE: React.CSSProperties = { margin: '0 0 8px', padding: 10, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(236,242,255,0.12)' };
 const MINI_BTN: React.CSSProperties = { padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(236,242,255,0.22)', background: 'rgba(255,255,255,0.08)', color: '#eef4ff', fontFamily: 'inherit', fontSize: 11, cursor: 'pointer' };
 const MINI_SELECT: React.CSSProperties = { padding: '3px 6px', borderRadius: 6, border: '1px solid rgba(236,242,255,0.22)', background: 'rgba(255,255,255,0.06)', color: '#eef4ff', fontSize: 11, fontFamily: 'inherit' };
 
 interface TextureCardProps {
   label: string; slot: ImageSlot; bgColor: string;
+  aspectW: number; aspectH: number;
   onFitModeChange: (mode: ImageFitMode) => void;
   onFullBleedChange: (v: boolean) => void;
   onClear: () => void;
   onFileChange: (file: File | null) => void;
 }
 
-function TextureCard({ label, slot, bgColor, onFitModeChange, onFullBleedChange, onClear, onFileChange }: TextureCardProps) {
+function TextureCard({ label, slot, bgColor, aspectW, aspectH, onFitModeChange, onFullBleedChange, onClear, onFileChange }: TextureCardProps) {
+  const thumbH = 64;
+  const thumbW = Math.round(thumbH * (aspectW / aspectH));
   return (
     <div style={CARD_STYLE}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-        <img src={renderThumbnail(slot, bgColor)} alt={label} style={THUMB_STYLE} />
+        <img src={renderThumbnail(slot, bgColor, aspectW, aspectH)} alt={label} style={{ width: thumbW, height: thumbH, borderRadius: 6, objectFit: 'cover', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(236,242,255,0.15)', flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6, color: 'rgba(236,242,255,0.92)' }}>{label}</div>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -88,9 +92,9 @@ export default function RightPanel({ params, coverSlots, pageSlots, onCoverSlotC
     <div style={{ ...PANEL_STYLE, right: 10 }}>
       <h1 style={{ margin: '0 0 10px', fontSize: 16, fontWeight: 700 }}>Textures</h1>
       <SectionTitle text="Cover Textures" />
-      {coverSlots.map((slot, i) => <TextureCard key={i} label={coverLabels[i]} slot={slot} bgColor={params.coverColor} {...makeHandlers(i, onCoverSlotChange, slot)} />)}
+      {coverSlots.map((slot, i) => <TextureCard key={i} label={coverLabels[i]} slot={slot} bgColor={params.coverColor} aspectW={params.coverWidth} aspectH={params.coverHeight} {...makeHandlers(i, onCoverSlotChange, slot)} />)}
       <SectionTitle text="Page Textures" />
-      {pageSlots.slice(0, params.pageCount).map((slot, i) => <TextureCard key={i} label={`Page ${i + 1}`} slot={slot} bgColor={params.pageColor} {...makeHandlers(i, onPageSlotChange, slot)} />)}
+      {pageSlots.slice(0, params.pageCount).map((slot, i) => <TextureCard key={i} label={`Page ${i + 1}`} slot={slot} bgColor={params.pageColor} aspectW={params.pageWidth} aspectH={params.pageHeight} {...makeHandlers(i, onPageSlotChange, slot)} />)}
     </div>
   );
 }

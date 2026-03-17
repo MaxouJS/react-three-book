@@ -46,8 +46,10 @@ export type { BookState } from './hooks/useBookState';
 
 export { useBookContent } from './hooks/useBookContent';
 
+export { useTextOverlay } from './hooks/useTextOverlay';
+
 // ── Texture utilities ──────────────────────────────────────────────────────────
-export { drawImageWithFit, createPageTexture, loadImage } from './textureUtils';
+export { drawImageWithFit, createPageTexture, loadImage, PX_PER_UNIT } from './textureUtils';
 export type { ImageFitMode, LoadedImage } from './textureUtils';
 
 // ── Core library (re-exported for consumers that need raw Three.js types) ─────
@@ -84,3 +86,9 @@ export type { Keyframe } from './core/AutoTurn';
 export { BookRenderer, RendererFactory, MeshFactory, PaperMeshDataPool } from './core/Renderer';
 export type { IPageContent } from './core/PageContent';
 export { PageContent, SpritePageContent2 } from './core/PageContent';
+
+export { TextBlock } from './core/TextBlock';
+export type { TextBlockOptions } from './core/TextBlock';
+
+export { TextOverlayContent } from './core/TextOverlayContent';
+export type { TextOverlayContentOptions } from './core/TextOverlayContent';

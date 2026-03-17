@@ -1,7 +1,8 @@
-import { BookDirection } from '@objectifthunes/react-three-book';
+import { BookDirection, PX_PER_UNIT } from '@objectifthunes/react-three-book';
 import type { ImageFitMode } from '@objectifthunes/react-three-book';
 
 export type { ImageFitMode };
+export { PX_PER_UNIT };
 
 export type DirectionOption = 'left-to-right' | 'right-to-left' | 'up-to-down' | 'down-to-up';
 
@@ -11,6 +12,51 @@ export interface ImageSlot {
   useImage: boolean;
   fitMode: ImageFitMode;
   fullBleed: boolean;
+}
+
+export interface PageTextBlock {
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  fontFamily: string; // empty string = use book default
+  fontSize: number;
+  fontWeight: 'normal' | 'bold';
+  fontStyle: 'normal' | 'italic';
+  color: string;
+  textAlign: 'left' | 'center' | 'right';
+}
+
+export const FONT_OPTIONS = [
+  'Georgia',
+  'Times New Roman',
+  'Garamond',
+  'Palatino',
+  'Arial',
+  'Helvetica',
+  'Verdana',
+  'Trebuchet MS',
+  'Tahoma',
+  'Courier New',
+  'Lucida Console',
+  'Comic Sans MS',
+];
+
+export function createDefaultTextBlock(pageWidth: number, pageHeight: number): PageTextBlock {
+  const cw = Math.round(pageWidth * PX_PER_UNIT);
+  const ch = Math.round(pageHeight * PX_PER_UNIT);
+  return {
+    text: '',
+    x: Math.round(cw * 0.06),
+    y: Math.round(ch * 0.55),
+    width: Math.round(cw * 0.88),
+    fontFamily: '',
+    fontSize: 22,
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    color: '#1a1a1a',
+    textAlign: 'left',
+  };
 }
 
 export interface DemoParams {
@@ -39,6 +85,7 @@ export interface DemoParams {
   sunX: number;
   sunY: number;
   sunZ: number;
+  bookFont: string;
 }
 
 export const defaultParams: DemoParams = {
@@ -67,6 +114,7 @@ export const defaultParams: DemoParams = {
   sunX: 5,
   sunY: 10,
   sunZ: 5,
+  bookFont: 'Georgia',
 };
 
 export const DIRECTION_TO_BOOK_DIRECTION: Record<DirectionOption, BookDirection> = {

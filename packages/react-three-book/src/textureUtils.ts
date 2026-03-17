@@ -57,8 +57,14 @@ export function drawImageWithFit(
 
 // ── createPageTexture ─────────────────────────────────────────────────────────
 
+/** Pixels per world unit — used to compute canvas size from page dimensions. */
+export const PX_PER_UNIT = 256;
+
 /**
- * Creates a 512×512 `THREE.CanvasTexture` suitable for use as a book page.
+ * Creates a `THREE.CanvasTexture` suitable for use as a book page.
+ *
+ * When `pageWidth` and `pageHeight` are given the canvas matches the page
+ * aspect ratio (256 px per world unit).  Otherwise defaults to 512×512.
  *
  * - Fills the background with `color`.
  * - If `image` is provided, draws it using `fitMode` and `fullBleed`.
@@ -70,24 +76,30 @@ export function createPageTexture(
   image: HTMLImageElement | null,
   fitMode: ImageFitMode,
   fullBleed: boolean,
+  pageWidth?: number,
+  pageHeight?: number,
 ): THREE.Texture {
+  const cw = pageWidth ? Math.round(pageWidth * PX_PER_UNIT) : 512;
+  const ch = pageHeight ? Math.round(pageHeight * PX_PER_UNIT) : 512;
+
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
+  canvas.width = cw;
+  canvas.height = ch;
   const ctx = canvas.getContext('2d')!;
 
   ctx.fillStyle = color;
-  ctx.fillRect(0, 0, 512, 512);
+  ctx.fillRect(0, 0, cw, ch);
 
   if (image) {
-    const margin = fullBleed ? 0 : 56;
-    drawImageWithFit(ctx, image, margin, margin, 512 - margin * 2, 512 - margin * 2, fitMode);
+    const margin = fullBleed ? 0 : Math.round(Math.min(cw, ch) * 0.11);
+    drawImageWithFit(ctx, image, margin, margin, cw - margin * 2, ch - margin * 2, fitMode);
   } else {
     ctx.fillStyle = '#333';
-    ctx.font = 'bold 48px Arial';
+    const fontSize = Math.round(Math.min(cw, ch) * 0.094);
+    ctx.font = `bold ${fontSize}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(label, 256, 256);
+    ctx.fillText(label, cw / 2, ch / 2);
   }
 
   const texture = new THREE.CanvasTexture(canvas);

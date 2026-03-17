@@ -6,6 +6,7 @@
 import type { RefObject } from 'react';
 import type { ThreeBook } from '@objectifthunes/react-three-book';
 import type { DemoParams, DirectionOption } from '../state';
+import { FONT_OPTIONS } from '../state';
 import {
   PANEL_STYLE,
   SectionTitle,
@@ -58,6 +59,12 @@ export default function LeftPanel({
         onChange={(v) => onPageCountChange(Math.max(2, Math.floor(v)))}
       />
       <ColorPicker label="Page Color" value={params.pageColor} onChange={(v) => onParamChange('pageColor', v)} />
+      <Select
+        label="Book Font"
+        value={params.bookFont}
+        options={FONT_OPTIONS.map((f) => ({ value: f, label: f }))}
+        onChange={(v) => onParamChange('bookFont', v)}
+      />
 
       {/* ── Cover Paper ── */}
       <SectionTitle text="Cover Paper" />
