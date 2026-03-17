@@ -24,13 +24,13 @@ interface BookSceneProps {
   pageTextBlocks: PageTextBlock[][];
   buildKey: number;
   bookRef: React.MutableRefObject<ThreeBook | null>;
+  overlaysRef: React.MutableRefObject<TextOverlayContent[]>;
   onBuilt: (book: ThreeBook) => void;
   onError: (err: Error) => void;
 }
 
-export default function BookScene({ params, coverSlots, pageSlots, pageTextBlocks, buildKey, bookRef, onBuilt, onError }: BookSceneProps) {
+export default function BookScene({ params, coverSlots, pageSlots, pageTextBlocks, buildKey, bookRef, overlaysRef, onBuilt, onError }: BookSceneProps) {
   const orbitRef = useRef<any>(null);
-  const overlaysRef = useRef<TextOverlayContent[]>([]);
 
   const content = useBookContent(() => {
     // Dispose previous overlays

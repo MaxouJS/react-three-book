@@ -1,17 +1,19 @@
 /**
  * PageEditor — WYSIWYG text block editor for book pages.
  *
- * Floating bottom panel with page selector, toolbar, 2D preview canvas
- * (click-to-select, drag-to-move), and textarea for editing text content.
+ * Uses the real TextOverlayContent canvas as the preview (pixel-accurate match
+ * with the 3D page) and TextBlock.measureHeight() for selection outlines.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { TextBlock, TextOverlayContent } from '@objectifthunes/react-three-book';
 import type { DemoParams, PageTextBlock } from '../state';
 import { FONT_OPTIONS, createDefaultTextBlock, PX_PER_UNIT } from '../state';
 
 interface PageEditorProps {
   params: DemoParams;
   pageTextBlocks: PageTextBlock[][];
+  overlaysRef: React.RefObject<TextOverlayContent[]>;
   onPageTextBlocksChange: (blocks: PageTextBlock[][]) => void;
 }
 
@@ -31,13 +33,19 @@ const MINI_SELECT: React.CSSProperties = {
   color: '#eef4ff', fontSize: 11, fontFamily: 'inherit',
 };
 
-export default function PageEditor({ params, pageTextBlocks, onPageTextBlocksChange }: PageEditorProps) {
+// Offscreen context for TextBlock measurement (font metrics only).
+const _measureCanvas = document.createElement('canvas');
+_measureCanvas.width = 1;
+_measureCanvas.height = 1;
+const measureCtx = _measureCanvas.getContext('2d')!;
+
+export default function PageEditor({ params, pageTextBlocks, overlaysRef, onPageTextBlocksChange }: PageEditorProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [selectedIdx, setSelectedIdx] = useState(-1);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef = useRef<number>(0);
   const dragRef = useRef<{ startX: number; startY: number; blockX: number; blockY: number } | null>(null);
 
-  // Clamp page
   const page = Math.min(currentPage, params.pageCount - 1);
   const blocks = pageTextBlocks[page] ?? [];
   const selected = selectedIdx >= 0 && selectedIdx < blocks.length ? blocks[selectedIdx] : null;
@@ -48,7 +56,18 @@ export default function PageEditor({ params, pageTextBlocks, onPageTextBlocksCha
   const displayW = Math.round(canvasW * scale);
   const displayH = Math.round(canvasH * scale);
 
-  // Immutable update helper
+  /** Pixel-accurate height of a state text block using TextBlock measurement. */
+  const blockHeight = useCallback((b: PageTextBlock): number => {
+    const tb = new TextBlock({
+      text: b.text, x: b.x, y: b.y, width: b.width,
+      fontFamily: b.fontFamily || params.bookFont,
+      fontSize: b.fontSize, fontWeight: b.fontWeight, fontStyle: b.fontStyle,
+      lineHeight: 1.4,
+    });
+    return Math.max(tb.measureHeight(measureCtx), b.fontSize * 1.4);
+  }, [params.bookFont]);
+
+  // Immutable update helpers
   const updateBlocks = useCallback((pageIdx: number, updater: (b: PageTextBlock[]) => PageTextBlock[]) => {
     const next = [...pageTextBlocks];
     next[pageIdx] = updater([...(next[pageIdx] ?? [])]);
@@ -64,67 +83,61 @@ export default function PageEditor({ params, pageTextBlocks, onPageTextBlocksCha
     });
   }, [page, selectedIdx, updateBlocks]);
 
-  // ── Canvas rendering ─────────────────────────────────────────────────────
+  // ── rAF render loop — draws real overlay canvas + selection outlines ────
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    canvas.width = displayW;
-    canvas.height = displayH;
     const ctx = canvas.getContext('2d')!;
 
-    // Background
-    ctx.fillStyle = params.pageColor;
-    ctx.fillRect(0, 0, displayW, displayH);
+    function draw() {
+      canvas!.width = displayW;
+      canvas!.height = displayH;
+      ctx.clearRect(0, 0, displayW, displayH);
 
-    // Draw text blocks preview
-    for (let i = 0; i < blocks.length; i++) {
-      const b = blocks[i];
-      const sx = b.x * scale;
-      const sy = b.y * scale;
-      const sw = (b.width > 0 ? b.width : 200) * scale;
-      const sh = Math.max(b.fontSize * 1.4 * 3, 40) * scale;
+      // Draw real overlay canvas (pixel-accurate match with 3D page)
+      const overlays = overlaysRef.current;
+      const overlay = overlays?.[page];
+      if (overlay) {
+        ctx.drawImage(overlay.canvas, 0, 0, displayW, displayH);
+      } else {
+        ctx.fillStyle = params.pageColor;
+        ctx.fillRect(0, 0, displayW, displayH);
+      }
 
-      // Draw text (simplified preview)
-      if (b.text) {
+      // Draw selection outlines using accurate TextBlock measurement
+      for (let i = 0; i < blocks.length; i++) {
+        const b = blocks[i];
+        const bw = b.width > 0 ? b.width : 200;
+        const bh = blockHeight(b);
+        const sx = b.x * scale;
+        const sy = b.y * scale;
+        const sw = bw * scale;
+        const sh = bh * scale;
+
         ctx.save();
-        const font = b.fontFamily || params.bookFont;
-        const fs = Math.max(8, b.fontSize * scale);
-        ctx.font = `${b.fontStyle} ${b.fontWeight} ${fs}px ${font}`;
-        ctx.fillStyle = b.color;
-        ctx.textBaseline = 'top';
-        ctx.textAlign = b.textAlign;
+        const active = i === selectedIdx;
+        ctx.strokeStyle = active ? '#89d8b0' : 'rgba(236,242,255,0.4)';
+        ctx.lineWidth = active ? 2 : 1;
+        if (!active) ctx.setLineDash([3, 3]);
+        ctx.strokeRect(sx, sy, sw, sh);
+        ctx.restore();
 
-        const lines = b.text.split('\n');
-        const leading = fs * 1.4;
-        const textX = b.textAlign === 'center' ? sx + sw / 2
-                     : b.textAlign === 'right' ? sx + sw
-                     : sx;
-        for (let j = 0; j < lines.length; j++) {
-          ctx.fillText(lines[j], textX, sy + j * leading, sw);
-        }
+        ctx.save();
+        ctx.font = 'bold 9px sans-serif';
+        ctx.fillStyle = active ? '#89d8b0' : 'rgba(236,242,255,0.5)';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`T${i + 1}`, sx + 3, sy + 2);
         ctx.restore();
       }
 
-      // Selection/hover outline
-      ctx.save();
-      const active = i === selectedIdx;
-      ctx.strokeStyle = active ? '#89d8b0' : 'rgba(236,242,255,0.4)';
-      ctx.lineWidth = active ? 2 : 1;
-      if (!active) ctx.setLineDash([3, 3]);
-      ctx.strokeRect(sx, sy, sw, sh);
-      ctx.restore();
-
-      // Badge
-      ctx.save();
-      ctx.font = 'bold 9px sans-serif';
-      ctx.fillStyle = active ? '#89d8b0' : 'rgba(236,242,255,0.5)';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      ctx.fillText(`T${i + 1}`, sx + 3, sy + 2);
-      ctx.restore();
+      rafRef.current = requestAnimationFrame(draw);
     }
-  }, [blocks, selectedIdx, params.pageColor, params.bookFont, displayW, displayH, scale]);
+
+    rafRef.current = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [blocks, selectedIdx, params.pageColor, params.bookFont, displayW, displayH, scale, page, overlaysRef, blockHeight]);
 
   // ── Pointer events ─────────────────────────────────────────────────────
 
@@ -137,11 +150,11 @@ export default function PageEditor({ params, pageTextBlocks, onPageTextBlocksCha
     for (let i = blocks.length - 1; i >= 0; i--) {
       const b = blocks[i];
       const bw = b.width > 0 ? b.width : 200;
-      const bh = Math.max(b.fontSize * 1.4 * 2, 40);
+      const bh = blockHeight(b);
       if (cx >= b.x && cx <= b.x + bw && cy >= b.y && cy <= b.y + bh) return i;
     }
     return -1;
-  }, [blocks]);
+  }, [blocks, blockHeight]);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     const cv = toCanvas(e);
