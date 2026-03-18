@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
-import { drawImageWithFit, loadImage } from '@objectifthunes/react-three-book';
+import { drawImageWithFit, loadImage, getSpreadPairs } from '@objectifthunes/react-three-book';
 import type { ImageSlot, ImageFitMode, DemoParams } from '../state';
-import { getSpreadPairs } from '../state';
 import { PANEL_STYLE, SectionTitle } from './UiHelpers';
 
 interface RightPanelProps {

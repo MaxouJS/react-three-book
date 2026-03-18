@@ -56,6 +56,19 @@ class SpreadHalfContent implements IPageContent {
   setActive(_active: boolean): void {}
 }
 
+/**
+ * Returns the 0-indexed page indices where a spread can start.
+ * In a staple-bound book, facing page pairs are (1,2), (3,4), (5,6), …
+ * — i.e. odd indices where i+1 < pageCount.
+ */
+export function getSpreadPairs(pageCount: number): number[] {
+  const pairs: number[] = [];
+  for (let i = 1; i + 1 < pageCount; i += 2) {
+    pairs.push(i);
+  }
+  return pairs;
+}
+
 export class SpreadContent {
   readonly canvas: HTMLCanvasElement;
   readonly texts: TextBlock[] = [];
