@@ -92,3 +92,6 @@ export type { TextBlockOptions } from './core/TextBlock';
 
 export { TextOverlayContent } from './core/TextOverlayContent';
 export type { TextOverlayContentOptions } from './core/TextOverlayContent';
+
+export { SpreadContent } from './core/SpreadContent';
+export type { SpreadContentOptions } from './core/SpreadContent';

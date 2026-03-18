@@ -1,14 +1,17 @@
 import { useCallback } from 'react';
 import { drawImageWithFit, loadImage } from '@objectifthunes/react-three-book';
 import type { ImageSlot, ImageFitMode, DemoParams } from '../state';
+import { getSpreadPairs } from '../state';
 import { PANEL_STYLE, SectionTitle } from './UiHelpers';
 
 interface RightPanelProps {
   params: DemoParams;
   coverSlots: ImageSlot[];
   pageSlots: ImageSlot[];
+  spreadPages: Set<number>;
   onCoverSlotChange: (index: number, updater: (slot: ImageSlot) => ImageSlot) => void;
   onPageSlotChange: (index: number, updater: (slot: ImageSlot) => ImageSlot) => void;
+  onSpreadPagesChange: (next: Set<number>) => void;
 }
 
 function renderThumbnail(slot: ImageSlot, color: string, aspectW: number, aspectH: number): string {
@@ -70,7 +73,7 @@ function TextureCard({ label, slot, bgColor, aspectW, aspectH, onFitModeChange, 
   );
 }
 
-export default function RightPanel({ params, coverSlots, pageSlots, onCoverSlotChange, onPageSlotChange }: RightPanelProps) {
+export default function RightPanel({ params, coverSlots, pageSlots, spreadPages, onCoverSlotChange, onPageSlotChange, onSpreadPagesChange }: RightPanelProps) {
   const coverLabels = ['Front Outer', 'Front Inner', 'Back Inner', 'Back Outer'];
 
   const makeHandlers = useCallback((index: number, onSlotChange: (i: number, u: (s: ImageSlot) => ImageSlot) => void, slot: ImageSlot) => ({
@@ -88,13 +91,58 @@ export default function RightPanel({ params, coverSlots, pageSlots, onCoverSlotC
     },
   }), []);
 
+  const eligibleSpreads = new Set(getSpreadPairs(params.pageCount));
+
+  const pageCards: React.ReactNode[] = [];
+  for (let i = 0; i < params.pageCount; i++) {
+    const isSpread = spreadPages.has(i);
+    const isRightOfSpread = spreadPages.has(i - 1);
+
+    // Skip right half of spread (merged into left card)
+    if (isRightOfSpread) continue;
+
+    // Spread checkbox for eligible pairs
+    if (eligibleSpreads.has(i)) {
+      pageCards.push(
+        <label key={`spread-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '6px 0 4px', fontSize: 11, color: 'rgba(236,242,255,0.82)', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={isSpread}
+            style={{ width: 14, height: 14 }}
+            onChange={(e) => {
+              const next = new Set(spreadPages);
+              if (e.target.checked) next.add(i); else next.delete(i);
+              onSpreadPagesChange(next);
+            }}
+          />
+          Double-page spread: Pages {i + 1}\u2013{i + 2}
+        </label>,
+      );
+    }
+
+    const slot = pageSlots[i];
+    const label = isSpread ? `Spread ${i + 1}\u2013${i + 2}` : `Page ${i + 1}`;
+    const aspectW = isSpread ? params.pageWidth * 2 : params.pageWidth;
+    pageCards.push(
+      <TextureCard
+        key={`page-${i}`}
+        label={label}
+        slot={slot}
+        bgColor={params.pageColor}
+        aspectW={aspectW}
+        aspectH={params.pageHeight}
+        {...makeHandlers(i, onPageSlotChange, slot)}
+      />,
+    );
+  }
+
   return (
     <div style={{ ...PANEL_STYLE, right: 10 }}>
       <h1 style={{ margin: '0 0 10px', fontSize: 16, fontWeight: 700 }}>Textures</h1>
       <SectionTitle text="Cover Textures" />
       {coverSlots.map((slot, i) => <TextureCard key={i} label={coverLabels[i]} slot={slot} bgColor={params.coverColor} aspectW={params.coverWidth} aspectH={params.coverHeight} {...makeHandlers(i, onCoverSlotChange, slot)} />)}
       <SectionTitle text="Page Textures" />
-      {pageSlots.slice(0, params.pageCount).map((slot, i) => <TextureCard key={i} label={`Page ${i + 1}`} slot={slot} bgColor={params.pageColor} aspectW={params.pageWidth} aspectH={params.pageHeight} {...makeHandlers(i, onPageSlotChange, slot)} />)}
+      {pageCards}
     </div>
   );
 }

@@ -6,14 +6,16 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { TextBlock, TextOverlayContent } from '@objectifthunes/react-three-book';
+import { TextBlock, TextOverlayContent, SpreadContent } from '@objectifthunes/react-three-book';
 import type { DemoParams, PageTextBlock } from '../state';
 import { FONT_OPTIONS, createDefaultTextBlock, PX_PER_UNIT } from '../state';
 
 interface PageEditorProps {
   params: DemoParams;
   pageTextBlocks: PageTextBlock[][];
-  overlaysRef: React.RefObject<TextOverlayContent[]>;
+  spreadPages: Set<number>;
+  overlaysRef: React.RefObject<(TextOverlayContent | null)[]>;
+  spreadsRef: React.RefObject<Map<number, SpreadContent>>;
   onPageTextBlocksChange: (blocks: PageTextBlock[][]) => void;
 }
 
@@ -39,7 +41,7 @@ _measureCanvas.width = 1;
 _measureCanvas.height = 1;
 const measureCtx = _measureCanvas.getContext('2d')!;
 
-export default function PageEditor({ params, pageTextBlocks, overlaysRef, onPageTextBlocksChange }: PageEditorProps) {
+export default function PageEditor({ params, pageTextBlocks, spreadPages, overlaysRef, spreadsRef, onPageTextBlocksChange }: PageEditorProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [selectedIdx, setSelectedIdx] = useState(-1);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -47,10 +49,16 @@ export default function PageEditor({ params, pageTextBlocks, overlaysRef, onPage
   const dragRef = useRef<{ startX: number; startY: number; blockX: number; blockY: number } | null>(null);
 
   const page = Math.min(currentPage, params.pageCount - 1);
-  const blocks = pageTextBlocks[page] ?? [];
+  const isSpread = spreadPages.has(page);
+  const isRightOfSpread = spreadPages.has(page - 1);
+  const effectivePage = isRightOfSpread ? page - 1 : page;
+  const isSpreadMode = isSpread || isRightOfSpread;
+
+  const blocks = pageTextBlocks[effectivePage] ?? [];
   const selected = selectedIdx >= 0 && selectedIdx < blocks.length ? blocks[selectedIdx] : null;
 
-  const canvasW = Math.round(params.pageWidth * PX_PER_UNIT);
+  const widthMultiplier = isSpreadMode ? 2 : 1;
+  const canvasW = Math.round(params.pageWidth * PX_PER_UNIT) * widthMultiplier;
   const canvasH = Math.round(params.pageHeight * PX_PER_UNIT);
   const scale = DISPLAY_MAX / Math.max(canvasW, canvasH);
   const displayW = Math.round(canvasW * scale);
@@ -76,12 +84,12 @@ export default function PageEditor({ params, pageTextBlocks, overlaysRef, onPage
 
   const updateSelected = useCallback((patch: Partial<PageTextBlock>) => {
     if (selectedIdx < 0) return;
-    updateBlocks(page, (arr) => {
+    updateBlocks(effectivePage, (arr) => {
       const copy = [...arr];
       copy[selectedIdx] = { ...copy[selectedIdx], ...patch };
       return copy;
     });
-  }, [page, selectedIdx, updateBlocks]);
+  }, [effectivePage, selectedIdx, updateBlocks]);
 
   // ── rAF render loop — draws real overlay canvas + selection outlines ────
 
@@ -95,14 +103,34 @@ export default function PageEditor({ params, pageTextBlocks, overlaysRef, onPage
       canvas!.height = displayH;
       ctx.clearRect(0, 0, displayW, displayH);
 
-      // Draw real overlay canvas (pixel-accurate match with 3D page)
-      const overlays = overlaysRef.current;
-      const overlay = overlays?.[page];
-      if (overlay) {
-        ctx.drawImage(overlay.canvas, 0, 0, displayW, displayH);
+      // Draw real overlay/spread canvas
+      if (isSpreadMode) {
+        const spread = spreadsRef.current?.get(effectivePage);
+        if (spread) {
+          ctx.drawImage(spread.canvas, 0, 0, displayW, displayH);
+        } else {
+          ctx.fillStyle = params.pageColor;
+          ctx.fillRect(0, 0, displayW, displayH);
+        }
+        // Center fold line
+        ctx.save();
+        ctx.strokeStyle = 'rgba(236,242,255,0.25)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(displayW / 2, 0);
+        ctx.lineTo(displayW / 2, displayH);
+        ctx.stroke();
+        ctx.restore();
       } else {
-        ctx.fillStyle = params.pageColor;
-        ctx.fillRect(0, 0, displayW, displayH);
+        const overlays = overlaysRef.current;
+        const overlay = overlays?.[page];
+        if (overlay) {
+          ctx.drawImage(overlay.canvas, 0, 0, displayW, displayH);
+        } else {
+          ctx.fillStyle = params.pageColor;
+          ctx.fillRect(0, 0, displayW, displayH);
+        }
       }
 
       // Draw selection outlines using accurate TextBlock measurement
@@ -137,7 +165,7 @@ export default function PageEditor({ params, pageTextBlocks, overlaysRef, onPage
 
     rafRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [blocks, selectedIdx, params.pageColor, params.bookFont, displayW, displayH, scale, page, overlaysRef, blockHeight]);
+  }, [blocks, selectedIdx, params.pageColor, params.bookFont, displayW, displayH, scale, page, effectivePage, isSpreadMode, overlaysRef, spreadsRef, blockHeight]);
 
   // ── Pointer events ─────────────────────────────────────────────────────
 
@@ -200,8 +228,8 @@ export default function PageEditor({ params, pageTextBlocks, overlaysRef, onPage
       {/* Page selector */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <button style={BTN} onClick={() => { if (page > 0) { setCurrentPage(page - 1); setSelectedIdx(-1); } }}>{'\u25C0'}</button>
-        <span style={{ fontWeight: 600, fontSize: 12, minWidth: 90, textAlign: 'center' }}>
-          Page {page + 1} of {params.pageCount}
+        <span style={{ fontWeight: 600, fontSize: 12, minWidth: 120, textAlign: 'center' }}>
+          {isSpreadMode ? `Spread ${effectivePage + 1}\u2013${effectivePage + 2}` : `Page ${page + 1}`} of {params.pageCount}
         </span>
         <button style={BTN} onClick={() => { if (page < params.pageCount - 1) { setCurrentPage(page + 1); setSelectedIdx(-1); } }}>{'\u25B6'}</button>
       </div>
@@ -263,7 +291,8 @@ export default function PageEditor({ params, pageTextBlocks, overlaysRef, onPage
         <button
           style={{ ...BTN, flex: 1 }}
           onClick={() => {
-            updateBlocks(page, (arr) => [...arr, createDefaultTextBlock(params.pageWidth, params.pageHeight)]);
+            const spreadW = isSpreadMode ? params.pageWidth * 2 : params.pageWidth;
+            updateBlocks(effectivePage, (arr) => [...arr, createDefaultTextBlock(spreadW, params.pageHeight)]);
             setSelectedIdx(blocks.length);
           }}
         >+ Add Text</button>
@@ -271,7 +300,7 @@ export default function PageEditor({ params, pageTextBlocks, overlaysRef, onPage
           style={{ ...BTN, flex: 1 }}
           disabled={selectedIdx < 0}
           onClick={() => {
-            updateBlocks(page, (arr) => arr.filter((_, j) => j !== selectedIdx));
+            updateBlocks(effectivePage, (arr) => arr.filter((_, j) => j !== selectedIdx));
             setSelectedIdx(-1);
           }}
         >{'\u2715'} Remove</button>

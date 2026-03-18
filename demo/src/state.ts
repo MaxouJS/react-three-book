@@ -131,3 +131,12 @@ export const EMPTY_SLOT: ImageSlot = {
   fitMode: 'cover',
   fullBleed: true,
 };
+
+/** Returns eligible spread-start indices (0-indexed, odd) for the page count. */
+export function getSpreadPairs(pageCount: number): number[] {
+  const pairs: number[] = [];
+  for (let i = 1; i + 1 < pageCount; i += 2) {
+    pairs.push(i);
+  }
+  return pairs;
+}

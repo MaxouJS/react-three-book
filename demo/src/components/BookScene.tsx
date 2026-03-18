@@ -8,6 +8,7 @@ import {
   BookInteraction,
   StapleBookBinding,
   TextOverlayContent,
+  SpreadContent,
   useBookContent,
   createPageTexture,
   PX_PER_UNIT,
@@ -22,20 +23,24 @@ interface BookSceneProps {
   coverSlots: ImageSlot[];
   pageSlots: ImageSlot[];
   pageTextBlocks: PageTextBlock[][];
+  spreadPages: Set<number>;
   buildKey: number;
   bookRef: React.MutableRefObject<ThreeBook | null>;
-  overlaysRef: React.MutableRefObject<TextOverlayContent[]>;
+  overlaysRef: React.MutableRefObject<(TextOverlayContent | null)[]>;
+  spreadsRef: React.MutableRefObject<Map<number, SpreadContent>>;
   onBuilt: (book: ThreeBook) => void;
   onError: (err: Error) => void;
 }
 
-export default function BookScene({ params, coverSlots, pageSlots, pageTextBlocks, buildKey, bookRef, overlaysRef, onBuilt, onError }: BookSceneProps) {
+export default function BookScene({ params, coverSlots, pageSlots, pageTextBlocks, spreadPages, buildKey, bookRef, overlaysRef, spreadsRef, onBuilt, onError }: BookSceneProps) {
   const orbitRef = useRef<any>(null);
 
   const content = useBookContent(() => {
-    // Dispose previous overlays
-    for (const o of overlaysRef.current) o.dispose();
+    // Dispose previous overlays & spreads
+    for (const o of overlaysRef.current) o?.dispose();
     overlaysRef.current = [];
+    for (const s of spreadsRef.current.values()) s.dispose();
+    spreadsRef.current = new Map();
 
     const c = new BookContent();
     c.direction = DIRECTION_TO_BOOK_DIRECTION[params.direction];
@@ -53,6 +58,44 @@ export default function BookScene({ params, coverSlots, pageSlots, pageTextBlock
 
     c.pages.length = 0;
     for (let i = 0; i < params.pageCount; i++) {
+      // Check if this page is part of a spread
+      if (spreadPages.has(i)) {
+        // Left page of spread — create SpreadContent
+        const s = pageSlots[i];
+        const spreadBaseTex = createPageTexture(params.pageColor, `Spread ${i + 1}\u2013${i + 2}`, s.useImage ? s.image : null, s.fitMode, s.fullBleed, params.pageWidth * 2, params.pageHeight);
+        const spread = new SpreadContent({
+          pageWidth: pageCW,
+          pageHeight: pageCH,
+          source: (spreadBaseTex as THREE.CanvasTexture).image as HTMLCanvasElement,
+        });
+
+        const blocks = pageTextBlocks[i] ?? [];
+        for (const b of blocks) {
+          if (!b.text) continue;
+          spread.addText({
+            text: b.text, x: b.x, y: b.y, width: b.width,
+            fontFamily: b.fontFamily || params.bookFont,
+            fontSize: b.fontSize, fontWeight: b.fontWeight, fontStyle: b.fontStyle,
+            color: b.color, textAlign: b.textAlign,
+            shadowColor: 'rgba(255,255,255,0.6)', shadowBlur: 3,
+          });
+        }
+
+        spreadsRef.current.set(i, spread);
+        overlaysRef.current.push(null);
+        c.pages.push(spread.left);
+        continue;
+      }
+
+      // Right half of a spread
+      if (spreadPages.has(i - 1)) {
+        const spread = spreadsRef.current.get(i - 1)!;
+        overlaysRef.current.push(null);
+        c.pages.push(spread.right);
+        continue;
+      }
+
+      // Normal single page
       const s = pageSlots[i];
       const baseTex = createPageTexture(params.pageColor, `Page ${i + 1}`, s.useImage ? s.image : null, s.fitMode, s.fullBleed, params.pageWidth, params.pageHeight);
       const overlay = new TextOverlayContent({
@@ -61,23 +104,15 @@ export default function BookScene({ params, coverSlots, pageSlots, pageTextBlock
         source: (baseTex as THREE.CanvasTexture).image as HTMLCanvasElement,
       });
 
-      // Add text blocks from state
       const blocks = pageTextBlocks[i] ?? [];
       for (const b of blocks) {
         if (!b.text) continue;
         overlay.addText({
-          text: b.text,
-          x: b.x,
-          y: b.y,
-          width: b.width,
+          text: b.text, x: b.x, y: b.y, width: b.width,
           fontFamily: b.fontFamily || params.bookFont,
-          fontSize: b.fontSize,
-          fontWeight: b.fontWeight,
-          fontStyle: b.fontStyle,
-          color: b.color,
-          textAlign: b.textAlign,
-          shadowColor: 'rgba(255,255,255,0.6)',
-          shadowBlur: 3,
+          fontSize: b.fontSize, fontWeight: b.fontWeight, fontStyle: b.fontStyle,
+          color: b.color, textAlign: b.textAlign,
+          shadowColor: 'rgba(255,255,255,0.6)', shadowBlur: 3,
         });
       }
 
@@ -90,7 +125,10 @@ export default function BookScene({ params, coverSlots, pageSlots, pageTextBlock
   useFrame(() => {
     const book = bookRef.current;
     for (const overlay of overlaysRef.current) {
-      overlay.update(book ?? undefined);
+      if (overlay) overlay.update(book ?? undefined);
+    }
+    for (const spread of spreadsRef.current.values()) {
+      spread.update(book ?? undefined);
     }
   });
 
