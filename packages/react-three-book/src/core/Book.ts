@@ -785,6 +785,103 @@ export class Book extends THREE.Group {
     return null;
   }
 
+  // ── Real-time content updates ──────────────────────────────────────
+
+  /**
+   * Hot-swap page/cover content without rebuilding geometry.
+   * Preserves open progress, turning state, and animations.
+   * If the new content has a different page/cover structure, falls back
+   * to a full rebuild with state preservation.
+   */
+  updateContent(newContent: BookContent): void {
+    if (!this.m_IsBuilt) {
+      this.m_Content = newContent;
+      return;
+    }
+
+    const currentProgress = this.getCurrentOpenProgress();
+    this.m_Content = newContent;
+    this.m_Content.init(this);
+
+    if (!this.refreshContent()) {
+      this.build();
+      this.setOpenProgress(currentProgress);
+    }
+  }
+
+  /**
+   * Re-apply all page/cover textures from the current BookContent
+   * to existing papers without rebuilding geometry.
+   * Returns false if a structural rebuild is needed (page count changed).
+   */
+  refreshContent(): boolean {
+    if (!this.m_IsBuilt || !this.m_Content) return false;
+
+    let covers = this.m_Content.coverContents;
+    let pages = this.m_Content.pageContents;
+
+    const newCoverPaperCount = Math.floor(covers.length / 2);
+    const newPagePaperCount = Math.floor(pages.length / 2);
+
+    if (
+      newCoverPaperCount !== this.m_CoverPaperCount ||
+      newPagePaperCount !== this.m_PagePaperCount
+    ) {
+      return false;
+    }
+
+    if (this.m_Content.direction % 2 !== 0) {
+      covers = [...covers].reverse();
+      pages = [...pages].reverse();
+    }
+
+    const pc = this.m_Papers.length;
+    const halfCoverPaperCount = Math.floor(covers.length / 4);
+
+    let pageIndex = 0;
+    let coverIndex = 0;
+
+    for (let i = 0; i < pc; i++) {
+      const paper = this.m_Papers[i];
+      const isCover =
+        this.m_HasCover &&
+        (i < halfCoverPaperCount || i >= pc - halfCoverPaperCount);
+
+      if (isCover) {
+        paper.setContentData(
+          covers[coverIndex++],
+          covers[coverIndex++],
+          i > halfCoverPaperCount,
+        );
+      } else {
+        paper.setContentData(pages[pageIndex++], pages[pageIndex++]);
+      }
+
+      paper.updateMaterials();
+    }
+
+    this.m_WasIdle = false;
+    return true;
+  }
+
+  private getCurrentOpenProgress(): number {
+    const pc = this.m_Papers.length;
+    if (pc === 0) return this.m_InitialOpenProgress;
+
+    let leftCount = 0;
+    for (const paper of this.m_Papers) {
+      if (!paper.isOnRightStack) leftCount++;
+    }
+
+    let progress = leftCount / pc;
+
+    if (this.m_Content && this.m_Content.direction % 2 !== 0) {
+      progress = 1 - progress;
+    }
+
+    return progress;
+  }
+
   // ── Live Pages ────────────────────────────────────────────────────────
 
   private updateLivePages(): void {
