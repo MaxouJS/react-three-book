@@ -24,7 +24,6 @@ interface BookSceneProps {
   pageSlots: ImageSlot[];
   pageTextBlocks: PageTextBlock[][];
   spreadPages: Set<number>;
-  buildKey: number;
   bookRef: React.MutableRefObject<ThreeBook | null>;
   overlaysRef: React.MutableRefObject<(TextOverlayContent | null)[]>;
   spreadsRef: React.MutableRefObject<Map<number, SpreadContent>>;
@@ -32,7 +31,7 @@ interface BookSceneProps {
   onError: (err: Error) => void;
 }
 
-export default function BookScene({ params, coverSlots, pageSlots, pageTextBlocks, spreadPages, buildKey, bookRef, overlaysRef, spreadsRef, onBuilt, onError }: BookSceneProps) {
+export default function BookScene({ params, coverSlots, pageSlots, pageTextBlocks, spreadPages, bookRef, overlaysRef, spreadsRef, onBuilt, onError }: BookSceneProps) {
   const orbitRef = useRef<any>(null);
 
   const content = useBookContent(() => {
@@ -145,7 +144,7 @@ export default function BookScene({ params, coverSlots, pageSlots, pageTextBlock
       </mesh>
       <OrbitControls ref={orbitRef} enableDamping dampingFactor={0.05} target={[0, 0.5, 0]} />
       <Book
-        key={buildKey} ref={bookRef} content={content} binding={binding}
+        ref={bookRef} content={content} binding={binding}
         initialOpenProgress={params.openProgress} castShadows={params.castShadows}
         alignToGround={params.alignToGround} hideBinder={params.hideBinder}
         reduceShadows={params.reduceShadows} reduceSubMeshes={params.reduceSubMeshes} reduceOverdraw={params.reduceOverdraw}

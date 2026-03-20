@@ -146,6 +146,11 @@ export class Book extends THREE.Group {
   private m_RendererIds: number[] = [];
   private m_WasIdle: boolean = false;
 
+  // Deferred update flags
+  private m_ContentDirty = false;
+  private m_StructuralDirty = false;
+  private m_AppliedDirection: BookDirection | undefined = undefined;
+
   // ── Internal accessors ─────────────────────────────────────────────────
 
   get minPaperWidth(): number { return this.m_MinPaperWidth; }
@@ -157,10 +162,78 @@ export class Book extends THREE.Group {
   get castShadowsFlag(): boolean { return this.m_CastShadows; }
   /** Alias matching IBookOwner interface expected by Paper.ts */
   get castShadows(): boolean { return this.m_CastShadows; }
+  set castShadows(value: boolean) {
+    if (this.m_CastShadows === value) return;
+    this.m_CastShadows = value;
+    this.m_StructuralDirty = true;
+  }
+
   get alignToGround(): boolean { return this.m_AlignToGround; }
+  set alignToGround(value: boolean) {
+    if (this.m_AlignToGround === value) return;
+    this.m_AlignToGround = value;
+    this.m_StructuralDirty = true;
+  }
+
+  get hideBinder(): boolean { return this.m_HideBinder; }
+  set hideBinder(value: boolean) {
+    if (this.m_HideBinder === value) return;
+    this.m_HideBinder = value;
+    this.m_StructuralDirty = true;
+  }
+
   get reduceShadows(): boolean { return this.m_ReduceShadows; }
+  set reduceShadows(value: boolean) {
+    if (this.m_ReduceShadows === value) return;
+    this.m_ReduceShadows = value;
+    this.m_StructuralDirty = true;
+  }
+
+  get reduceSubMeshes(): boolean { return this.m_ReduceSubMeshes; }
+  set reduceSubMeshes(value: boolean) {
+    if (this.m_ReduceSubMeshes === value) return;
+    this.m_ReduceSubMeshes = value;
+    this.m_StructuralDirty = true;
+  }
+
+  get reduceOverdraw(): boolean { return this.m_ReduceOverdraw; }
+  set reduceOverdraw(value: boolean) {
+    if (this.m_ReduceOverdraw === value) return;
+    this.m_ReduceOverdraw = value;
+    this.m_StructuralDirty = true;
+  }
+
   get coverPaperSetup(): PaperSetup { return this.m_CoverPaperSetup; }
+  set coverPaperSetup(value: Partial<PaperSetupInit>) {
+    const old = this.m_CoverPaperSetup;
+    const w = value.width ?? old.width;
+    const h = value.height ?? old.height;
+    const t = value.thickness ?? old.thickness;
+    const s = value.stiffness ?? old.stiffness;
+    if (old.width === w && old.height === h && old.thickness === t && old.stiffness === s) return;
+    this.m_CoverPaperSetup = new PaperSetup({
+      color: value.color ?? old.color,
+      width: w, height: h, thickness: t, stiffness: s,
+      material: value.material !== undefined ? value.material : old.material,
+    });
+    this.m_StructuralDirty = true;
+  }
+
   get pagePaperSetup(): PaperSetup { return this.m_PagePaperSetup; }
+  set pagePaperSetup(value: Partial<PaperSetupInit>) {
+    const old = this.m_PagePaperSetup;
+    const w = value.width ?? old.width;
+    const h = value.height ?? old.height;
+    const t = value.thickness ?? old.thickness;
+    const s = value.stiffness ?? old.stiffness;
+    if (old.width === w && old.height === h && old.thickness === t && old.stiffness === s) return;
+    this.m_PagePaperSetup = new PaperSetup({
+      color: value.color ?? old.color,
+      width: w, height: h, thickness: t, stiffness: s,
+      material: value.material !== undefined ? value.material : old.material,
+    });
+    this.m_StructuralDirty = true;
+  }
   get bound(): BookBound | null { return this.m_Bound; }
   get papers(): Paper[] { return this.m_Papers; }
   get rendererIds(): number[] { return this.m_RendererIds; }
@@ -170,18 +243,16 @@ export class Book extends THREE.Group {
 
   get binding(): BookBinding | null { return this.m_Binding; }
   set binding(value: BookBinding | null) {
-    if (this.m_Binding !== value) {
-      this.m_Binding = value;
-      this.clear();
-    }
+    if (this.m_Binding === value) return;
+    this.m_Binding = value;
+    this.m_StructuralDirty = true;
   }
 
   get content(): BookContent | null { return this.m_Content; }
   set content(value: BookContent | null) {
-    if (this.m_Content !== value) {
-      this.m_Content = value;
-      this.clear();
-    }
+    if (this.m_Content === value) return;
+    this.m_Content = value;
+    this.m_ContentDirty = true;
   }
 
   get initialOpenProgress(): number { return this.m_InitialOpenProgress; }
@@ -220,6 +291,11 @@ export class Book extends THREE.Group {
 
   get autoTurningEndTime(): number {
     return this.m_AutoTurningEndTime;
+  }
+
+  /** Current open progress (0–1), read from actual paper positions. */
+  get openProgress(): number {
+    return this.getCurrentOpenProgress();
   }
 
   // ── Constructor ────────────────────────────────────────────────────────
@@ -488,6 +564,9 @@ export class Book extends THREE.Group {
 
     if (this.m_BuildOnAwake) {
       this.build();
+      this.m_ContentDirty = false;
+      this.m_StructuralDirty = false;
+      this.m_AppliedDirection = this.m_Content?.direction;
     }
   }
 
@@ -497,6 +576,30 @@ export class Book extends THREE.Group {
    */
   update(dt: number): void {
     this.m_CurrentTime += dt;
+
+    // Apply deferred property changes
+    if (this.m_IsBuilt) {
+      if (this.m_StructuralDirty) {
+        this.m_StructuralDirty = false;
+        this.m_ContentDirty = false;
+        const progress = this.getCurrentOpenProgress();
+        this.build();
+        this.setOpenProgress(progress);
+        this.m_AppliedDirection = this.m_Content?.direction;
+      } else if (this.m_ContentDirty) {
+        this.m_ContentDirty = false;
+        if (this.m_Content) {
+          this.m_Content.init(this);
+          const directionChanged = this.m_Content.direction !== this.m_AppliedDirection;
+          this.m_AppliedDirection = this.m_Content.direction;
+          if (directionChanged || !this.refreshContent()) {
+            const progress = this.getCurrentOpenProgress();
+            this.build();
+            this.setOpenProgress(progress);
+          }
+        }
+      }
+    }
 
     if (!this.m_IsBuilt) return;
     if (this.m_Papers.length === 0) return;
@@ -526,7 +629,7 @@ export class Book extends THREE.Group {
 
   // ── Build ─────────────────────────────────────────────────────────────
 
-  build(): void {
+  private build(): void {
     this.clear();
     if (this.m_Content === null || this.m_Content.isEmpty) return;
     if (this.m_Binding === null) return;
@@ -785,36 +888,12 @@ export class Book extends THREE.Group {
     return null;
   }
 
-  // ── Real-time content updates ──────────────────────────────────────
-
-  /**
-   * Hot-swap page/cover content without rebuilding geometry.
-   * Preserves open progress, turning state, and animations.
-   * If the new content has a different page/cover structure, falls back
-   * to a full rebuild with state preservation.
-   */
-  updateContent(newContent: BookContent): void {
-    if (!this.m_IsBuilt) {
-      this.m_Content = newContent;
-      return;
-    }
-
-    const currentProgress = this.getCurrentOpenProgress();
-    this.m_Content = newContent;
-    this.m_Content.init(this);
-
-    if (!this.refreshContent()) {
-      this.build();
-      this.setOpenProgress(currentProgress);
-    }
-  }
-
   /**
    * Re-apply all page/cover textures from the current BookContent
    * to existing papers without rebuilding geometry.
    * Returns false if a structural rebuild is needed (page count changed).
    */
-  refreshContent(): boolean {
+  private refreshContent(): boolean {
     if (!this.m_IsBuilt || !this.m_Content) return false;
 
     let covers = this.m_Content.coverContents;

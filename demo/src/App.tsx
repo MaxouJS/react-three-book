@@ -11,26 +11,26 @@ const MAX_PAGE_SLOTS = 40;
 
 export default function App() {
   const [params, setParams] = useState<DemoParams>(defaultParams);
-  const [buildKey, setBuildKey] = useState(0);
   const [coverSlots, setCoverSlots] = useState<ImageSlot[]>(() => Array.from({ length: 4 }, () => ({ ...EMPTY_SLOT })));
   const [pageSlots, setPageSlots] = useState<ImageSlot[]>(() => Array.from({ length: MAX_PAGE_SLOTS }, () => ({ ...EMPTY_SLOT })));
   const [pageTextBlocks, setPageTextBlocks] = useState<PageTextBlock[][]>(() => Array.from({ length: MAX_PAGE_SLOTS }, () => []));
   const [spreadPages, setSpreadPages] = useState<Set<number>>(() => new Set());
   const [status, setStatus] = useState('Building\u2026');
+  const [sceneKey, setSceneKey] = useState(0);
   const bookRef = useRef<ThreeBook | null>(null);
   const overlaysRef = useRef<(TextOverlayContent | null)[]>([]);
   const spreadsRef = useRef<Map<number, SpreadContent>>(new Map());
 
-  const rebuild = useCallback(() => setBuildKey((k) => k + 1), []);
+  const forceRebuild = useCallback(() => {
+    setSceneKey((k) => k + 1);
+  }, []);
 
-  const setParam = useCallback(<K extends keyof DemoParams>(key: K, value: DemoParams[K], doRebuild = true) => {
+  const setParam = useCallback(<K extends keyof DemoParams>(key: K, value: DemoParams[K]) => {
     setParams((prev) => ({ ...prev, [key]: value }));
-    if (doRebuild) setBuildKey((k) => k + 1);
   }, []);
 
   const setPageCount = useCallback((count: number) => {
     setParams((prev) => ({ ...prev, pageCount: count }));
-    setBuildKey((k) => k + 1);
   }, []);
 
   const onBuilt = useCallback((book: ThreeBook) => {
@@ -54,15 +54,14 @@ export default function App() {
 
   const onSpreadPagesChange = useCallback((next: Set<number>) => {
     setSpreadPages(next);
-    setBuildKey((k) => k + 1);
   }, []);
 
   return (
     <>
       <Canvas shadows camera={{ position: [0, 2, 5], fov: 45 }} style={{ position: 'fixed', inset: 0 }} gl={{ antialias: true }}>
-        <BookScene params={params} coverSlots={coverSlots} pageSlots={pageSlots} pageTextBlocks={pageTextBlocks} spreadPages={spreadPages} buildKey={buildKey} bookRef={bookRef} overlaysRef={overlaysRef} spreadsRef={spreadsRef} onBuilt={onBuilt} onError={onError} />
+        <BookScene key={sceneKey} params={params} coverSlots={coverSlots} pageSlots={pageSlots} pageTextBlocks={pageTextBlocks} spreadPages={spreadPages} bookRef={bookRef} overlaysRef={overlaysRef} spreadsRef={spreadsRef} onBuilt={onBuilt} onError={onError} />
       </Canvas>
-      <LeftPanel params={params} status={status} bookRef={bookRef} onParamChange={setParam} onPageCountChange={setPageCount} onRebuild={rebuild} />
+      <LeftPanel params={params} status={status} bookRef={bookRef} onParamChange={setParam} onPageCountChange={setPageCount} onRebuild={forceRebuild} />
       <RightPanel params={params} coverSlots={coverSlots} pageSlots={pageSlots} spreadPages={spreadPages} onCoverSlotChange={onCoverSlotChange} onPageSlotChange={onPageSlotChange} onSpreadPagesChange={onSpreadPagesChange} />
       <PageEditor params={params} pageTextBlocks={pageTextBlocks} spreadPages={spreadPages} overlaysRef={overlaysRef} spreadsRef={spreadsRef} onPageTextBlocksChange={onPageTextBlocksChange} />
     </>

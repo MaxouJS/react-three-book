@@ -13,11 +13,10 @@
  *     <BookInteraction orbitControlsRef={orbitRef} />
  *   </Book>
  *
- * Triggering a full rebuild:
- *   Change the `key` prop — React unmounts + remounts the component,
- *   which runs dispose → init cleanly:
- *
- *   <Book key={buildKey} content={content} ... />
+ * All option changes are applied during render via guarded setters.
+ * `update(delta)` detects changes via dirty flags and applies the
+ * cheapest path (content refresh vs structural rebuild) while
+ * preserving open progress, turning state, and animations.
  *
  * Accessing the ThreeBook imperatively:
  *   Pass a ref; it exposes the raw ThreeBook instance:

@@ -20,7 +20,7 @@ interface LeftPanelProps {
   params: DemoParams;
   status: string;
   bookRef: RefObject<ThreeBook | null>;
-  onParamChange: <K extends keyof DemoParams>(key: K, value: DemoParams[K], rebuild?: boolean) => void;
+  onParamChange: <K extends keyof DemoParams>(key: K, value: DemoParams[K]) => void;
   onPageCountChange: (count: number) => void;
   onRebuild: () => void;
 }
@@ -58,12 +58,12 @@ export default function LeftPanel({
         value={params.pageCount}
         onChange={(v) => onPageCountChange(Math.max(2, Math.floor(v)))}
       />
-      <ColorPicker label="Page Color" value={params.pageColor} onChange={(v) => onParamChange('pageColor', v, false)} />
+      <ColorPicker label="Page Color" value={params.pageColor} onChange={(v) => onParamChange('pageColor', v)} />
       <Select
         label="Book Font"
         value={params.bookFont}
         options={FONT_OPTIONS.map((f) => ({ value: f, label: f }))}
-        onChange={(v) => onParamChange('bookFont', v, false)}
+        onChange={(v) => onParamChange('bookFont', v)}
       />
 
       {/* ── Cover Paper ── */}
@@ -73,7 +73,7 @@ export default function LeftPanel({
       <Slider label="Height"    min={1}     max={5}    step={0.1}   value={params.coverHeight}    onChange={(v) => onParamChange('coverHeight', v)} />
       <Slider label="Thickness" min={0.005} max={0.15} step={0.001} value={params.coverThickness} onChange={(v) => onParamChange('coverThickness', v)} />
       <Slider label="Stiffness" min={0}     max={1}    step={0.01}  value={params.coverStiffness} onChange={(v) => onParamChange('coverStiffness', v)} />
-      <ColorPicker label="Cover Color" value={params.coverColor} onChange={(v) => onParamChange('coverColor', v, false)} />
+      <ColorPicker label="Cover Color" value={params.coverColor} onChange={(v) => onParamChange('coverColor', v)} />
 
       {/* ── Book ── */}
       <SectionTitle text="Book" />
@@ -95,7 +95,7 @@ export default function LeftPanel({
         min={0} max={1} step={0.01}
         value={params.openProgress}
         onChange={(v) => {
-          onParamChange('openProgress', v, false); // no full rebuild
+          onParamChange('openProgress', v);
           bookRef.current?.setOpenProgress(v);
         }}
       />
@@ -109,7 +109,7 @@ export default function LeftPanel({
       <Checkbox
         label="Interactive Turning"
         value={params.interactive}
-        onChange={(v) => onParamChange('interactive', v, false)} // no rebuild
+        onChange={(v) => onParamChange('interactive', v)}
       />
 
       <button
@@ -134,11 +134,11 @@ export default function LeftPanel({
       {/* ── Lighting ── */}
       <SectionTitle text="Lighting" />
 
-      <Slider label="Sun Intensity"     min={0} max={6}   step={0.1}  value={params.sunIntensity}     onChange={(v) => onParamChange('sunIntensity', v, false)} />
-      <Slider label="Ambient Intensity" min={0} max={2}   step={0.05} value={params.ambientIntensity} onChange={(v) => onParamChange('ambientIntensity', v, false)} />
-      <Slider label="Sun X"             min={-12} max={12} step={0.1} value={params.sunX}             onChange={(v) => onParamChange('sunX', v, false)} />
-      <Slider label="Sun Y"             min={1}   max={20} step={0.1} value={params.sunY}             onChange={(v) => onParamChange('sunY', v, false)} />
-      <Slider label="Sun Z"             min={-12} max={12} step={0.1} value={params.sunZ}             onChange={(v) => onParamChange('sunZ', v, false)} />
+      <Slider label="Sun Intensity"     min={0} max={6}   step={0.1}  value={params.sunIntensity}     onChange={(v) => onParamChange('sunIntensity', v)} />
+      <Slider label="Ambient Intensity" min={0} max={2}   step={0.05} value={params.ambientIntensity} onChange={(v) => onParamChange('ambientIntensity', v)} />
+      <Slider label="Sun X"             min={-12} max={12} step={0.1} value={params.sunX}             onChange={(v) => onParamChange('sunX', v)} />
+      <Slider label="Sun Y"             min={1}   max={20} step={0.1} value={params.sunY}             onChange={(v) => onParamChange('sunY', v)} />
+      <Slider label="Sun Z"             min={-12} max={12} step={0.1} value={params.sunZ}             onChange={(v) => onParamChange('sunZ', v)} />
     </div>
   );
 }
