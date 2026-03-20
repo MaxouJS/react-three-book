@@ -58,12 +58,12 @@ export default function LeftPanel({
         value={params.pageCount}
         onChange={(v) => onPageCountChange(Math.max(2, Math.floor(v)))}
       />
-      <ColorPicker label="Page Color" value={params.pageColor} onChange={(v) => onParamChange('pageColor', v)} />
+      <ColorPicker label="Page Color" value={params.pageColor} onChange={(v) => onParamChange('pageColor', v, false)} />
       <Select
         label="Book Font"
         value={params.bookFont}
         options={FONT_OPTIONS.map((f) => ({ value: f, label: f }))}
-        onChange={(v) => onParamChange('bookFont', v)}
+        onChange={(v) => onParamChange('bookFont', v, false)}
       />
 
       {/* ── Cover Paper ── */}
@@ -73,7 +73,7 @@ export default function LeftPanel({
       <Slider label="Height"    min={1}     max={5}    step={0.1}   value={params.coverHeight}    onChange={(v) => onParamChange('coverHeight', v)} />
       <Slider label="Thickness" min={0.005} max={0.15} step={0.001} value={params.coverThickness} onChange={(v) => onParamChange('coverThickness', v)} />
       <Slider label="Stiffness" min={0}     max={1}    step={0.01}  value={params.coverStiffness} onChange={(v) => onParamChange('coverStiffness', v)} />
-      <ColorPicker label="Cover Color" value={params.coverColor} onChange={(v) => onParamChange('coverColor', v)} />
+      <ColorPicker label="Cover Color" value={params.coverColor} onChange={(v) => onParamChange('coverColor', v, false)} />
 
       {/* ── Book ── */}
       <SectionTitle text="Book" />

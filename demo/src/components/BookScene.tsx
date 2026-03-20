@@ -120,7 +120,7 @@ export default function BookScene({ params, coverSlots, pageSlots, pageTextBlock
       c.pages.push(overlay);
     }
     return c;
-  }, [buildKey]);
+  }, [params.direction, params.coverColor, params.pageColor, params.coverWidth, params.coverHeight, params.pageWidth, params.pageHeight, params.pageCount, params.bookFont, coverSlots, pageSlots, pageTextBlocks, spreadPages]);
 
   useFrame(() => {
     const book = bookRef.current;
@@ -132,7 +132,7 @@ export default function BookScene({ params, coverSlots, pageSlots, pageTextBlock
     }
   });
 
-  const binding = useMemo(() => new StapleBookBinding(), [buildKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const binding = useMemo(() => new StapleBookBinding(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
