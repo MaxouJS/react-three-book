@@ -1,8 +1,6 @@
 /**
  * PageEditor — WYSIWYG text block editor for book pages.
- *
- * Uses the real TextOverlayContent canvas as the preview (pixel-accurate match
- * with the 3D page) and TextBlock.measureHeight() for selection outlines.
+ * Renders bare content (no panel wrapper — parent provides the container).
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -91,7 +89,7 @@ export default function PageEditor({ params, pageTextBlocks, spreadPages, overla
     });
   }, [effectivePage, selectedIdx, updateBlocks]);
 
-  // ── rAF render loop — draws real overlay canvas + selection outlines ────
+  // rAF render loop — draws real overlay canvas + selection outlines
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -167,7 +165,7 @@ export default function PageEditor({ params, pageTextBlocks, spreadPages, overla
     return () => cancelAnimationFrame(rafRef.current);
   }, [blocks, selectedIdx, params.pageColor, params.bookFont, displayW, displayH, scale, page, effectivePage, isSpreadMode, overlaysRef, spreadsRef, blockHeight]);
 
-  // ── Pointer events ─────────────────────────────────────────────────────
+  // Pointer events
 
   const toCanvas = useCallback((e: React.PointerEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -212,19 +210,7 @@ export default function PageEditor({ params, pageTextBlocks, spreadPages, overla
   }, []);
 
   return (
-    <div
-      style={{
-        position: 'fixed', bottom: 40, left: '50%', transform: 'translateX(-50%)',
-        padding: 10, borderRadius: 12, color: '#ecf2ff',
-        fontFamily: "'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif",
-        fontSize: 12, background: 'rgba(8, 10, 18, 0.82)',
-        border: '1px solid rgba(214, 225, 255, 0.2)',
-        boxShadow: '0 18px 42px rgba(0, 0, 0, 0.38)',
-        backdropFilter: 'blur(8px)', userSelect: 'none', zIndex: 100,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: 460,
-      }}
-      onPointerDown={(e) => e.stopPropagation()}
-    >
+    <>
       {/* Page selector */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <button style={BTN} onClick={() => { if (page > 0) { setCurrentPage(page - 1); setSelectedIdx(-1); } }}>{'\u25C0'}</button>
@@ -314,6 +300,7 @@ export default function PageEditor({ params, pageTextBlocks, spreadPages, overla
         style={{
           display: 'block', borderRadius: 8, cursor: 'crosshair',
           border: '1px solid rgba(236,242,255,0.12)', marginBottom: 8,
+          maxWidth: '100%',
         }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -334,6 +321,6 @@ export default function PageEditor({ params, pageTextBlocks, spreadPages, overla
         }}
         onChange={(e) => updateSelected({ text: e.target.value })}
       />
-    </div>
+    </>
   );
 }

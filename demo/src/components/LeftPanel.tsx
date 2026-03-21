@@ -1,6 +1,6 @@
 /**
- * Left controls panel — React port of three-book/demo/src/left-panel.ts.
- * Same sections, same controls, same ordering.
+ * Left controls panel — book parameters, cover, rendering, lighting.
+ * Renders bare content (no panel wrapper — parent provides the container).
  */
 
 import type { RefObject } from 'react';
@@ -8,7 +8,6 @@ import type { ThreeBook } from '@objectifthunes/react-three-book';
 import type { DemoParams, DirectionOption } from '../state';
 import { FONT_OPTIONS } from '../state';
 import {
-  PANEL_STYLE,
   SectionTitle,
   Slider,
   ColorPicker,
@@ -18,7 +17,6 @@ import {
 
 interface LeftPanelProps {
   params: DemoParams;
-  status: string;
   bookRef: RefObject<ThreeBook | null>;
   onParamChange: <K extends keyof DemoParams>(key: K, value: DemoParams[K]) => void;
   onPageCountChange: (count: number) => void;
@@ -27,25 +25,14 @@ interface LeftPanelProps {
 
 export default function LeftPanel({
   params,
-  status,
   bookRef,
   onParamChange,
   onPageCountChange,
   onRebuild,
 }: LeftPanelProps) {
   return (
-    <div style={{ ...PANEL_STYLE, left: 10 }}>
-      <h1 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700 }}>
-        react-three-book demo
-      </h1>
-      <p style={{ margin: '0 0 10px', color: 'rgba(236, 242, 255, 0.82)', fontSize: 12 }}>
-        Drag pages to turn. Orbit: right-click + wheel.
-      </p>
-      <div style={{ marginBottom: 10, color: '#8cf0bf', fontWeight: 700, fontSize: 12 }}>
-        {status}
-      </div>
-
-      {/* ── Page Paper ── */}
+    <>
+      {/* Page Paper */}
       <SectionTitle text="Page Paper" />
 
       <Slider label="Width"     min={1}     max={5}    step={0.1}   value={params.pageWidth}     onChange={(v) => onParamChange('pageWidth', v)} />
@@ -66,7 +53,7 @@ export default function LeftPanel({
         onChange={(v) => onParamChange('bookFont', v)}
       />
 
-      {/* ── Cover Paper ── */}
+      {/* Cover Paper */}
       <SectionTitle text="Cover Paper" />
 
       <Slider label="Width"     min={1}     max={5}    step={0.1}   value={params.coverWidth}     onChange={(v) => onParamChange('coverWidth', v)} />
@@ -75,7 +62,7 @@ export default function LeftPanel({
       <Slider label="Stiffness" min={0}     max={1}    step={0.01}  value={params.coverStiffness} onChange={(v) => onParamChange('coverStiffness', v)} />
       <ColorPicker label="Cover Color" value={params.coverColor} onChange={(v) => onParamChange('coverColor', v)} />
 
-      {/* ── Book ── */}
+      {/* Book */}
       <SectionTitle text="Book" />
 
       <Select
@@ -131,7 +118,7 @@ export default function LeftPanel({
         Force Rebuild
       </button>
 
-      {/* ── Lighting ── */}
+      {/* Lighting */}
       <SectionTitle text="Lighting" />
 
       <Slider label="Sun Intensity"     min={0} max={6}   step={0.1}  value={params.sunIntensity}     onChange={(v) => onParamChange('sunIntensity', v)} />
@@ -139,6 +126,6 @@ export default function LeftPanel({
       <Slider label="Sun X"             min={-12} max={12} step={0.1} value={params.sunX}             onChange={(v) => onParamChange('sunX', v)} />
       <Slider label="Sun Y"             min={1}   max={20} step={0.1} value={params.sunY}             onChange={(v) => onParamChange('sunY', v)} />
       <Slider label="Sun Z"             min={-12} max={12} step={0.1} value={params.sunZ}             onChange={(v) => onParamChange('sunZ', v)} />
-    </div>
+    </>
   );
 }

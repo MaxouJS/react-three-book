@@ -1,7 +1,12 @@
+/**
+ * Texture management — cover + page textures with spread support.
+ * Renders bare content (no panel wrapper — parent provides the container).
+ */
+
 import { useCallback } from 'react';
 import { drawImageWithFit, loadImage, getSpreadPairs } from '@objectifthunes/react-three-book';
 import type { ImageSlot, ImageFitMode, DemoParams } from '../state';
-import { PANEL_STYLE, SectionTitle } from './UiHelpers';
+import { SectionTitle } from './UiHelpers';
 
 interface RightPanelProps {
   params: DemoParams;
@@ -136,12 +141,11 @@ export default function RightPanel({ params, coverSlots, pageSlots, spreadPages,
   }
 
   return (
-    <div style={{ ...PANEL_STYLE, right: 10 }}>
-      <h1 style={{ margin: '0 0 10px', fontSize: 16, fontWeight: 700 }}>Textures</h1>
+    <>
       <SectionTitle text="Cover Textures" />
       {coverSlots.map((slot, i) => <TextureCard key={i} label={coverLabels[i]} slot={slot} bgColor={params.coverColor} aspectW={params.coverWidth} aspectH={params.coverHeight} {...makeHandlers(i, onCoverSlotChange, slot)} />)}
       <SectionTitle text="Page Textures" />
       {pageCards}
-    </div>
+    </>
   );
 }
