@@ -1,6 +1,6 @@
 {
   "name": "@objectifthunes/react-three-book",
-  "version": "0.4.0",
+  "version": "0.4.2",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -10,7 +10,10 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc --noEmit",

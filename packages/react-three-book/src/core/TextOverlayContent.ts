@@ -45,13 +45,17 @@ export class TextOverlayContent implements IPageContent {
   private readonly _texture: THREE.CanvasTexture;
   private readonly _textureST = new THREE.Vector4(1, 1, 0, 0);
   private _source: HTMLCanvasElement | HTMLImageElement | null;
+  private _dirty = true;
 
   get texture(): THREE.Texture { return this._texture; }
   get textureST(): THREE.Vector4 { return this._textureST; }
 
   /** The base layer drawn beneath text blocks. */
   get source(): HTMLCanvasElement | HTMLImageElement | null { return this._source; }
-  set source(v: HTMLCanvasElement | HTMLImageElement | null) { this._source = v; }
+  set source(v: HTMLCanvasElement | HTMLImageElement | null) { this._source = v; this._dirty = true; }
+
+  /** Mark the overlay as needing a re-composite on the next update(). */
+  markDirty(): void { this._dirty = true; }
 
   constructor(options?: TextOverlayContentOptions) {
     const w = options?.width ?? 512;
@@ -75,12 +79,13 @@ export class TextOverlayContent implements IPageContent {
   addText(options?: TextBlockOptions): TextBlock {
     const t = new TextBlock(options);
     this.texts.push(t);
+    this._dirty = true;
     return t;
   }
 
   removeText(text: TextBlock): void {
     const idx = this.texts.indexOf(text);
-    if (idx !== -1) this.texts.splice(idx, 1);
+    if (idx !== -1) { this.texts.splice(idx, 1); this._dirty = true; }
   }
 
   /** Update a text block by index. Only provided fields are changed. */
@@ -88,6 +93,7 @@ export class TextOverlayContent implements IPageContent {
     const t = this.texts[index];
     if (!t) return;
     applyTextBlockOptions(t, options);
+    this._dirty = true;
   }
 
   // ── Per-frame update ─────────────────────────────────────────────────────
@@ -101,6 +107,11 @@ export class TextOverlayContent implements IPageContent {
    *              clones material textures).
    */
   update(root?: THREE.Object3D): void {
+    // Skip redraw when nothing changed and there's no external source
+    // (an external source canvas may change at any time — we can't track it).
+    if (!this._dirty && !this._source) return;
+    this._dirty = false;
+
     const { ctx, canvas } = this;
     const w = canvas.width;
     const h = canvas.height;

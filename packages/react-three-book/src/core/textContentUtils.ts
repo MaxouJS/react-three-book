@@ -32,8 +32,14 @@ export function syncMaterialsForCanvas(
   root.traverse((obj: THREE.Object3D) => {
     if (!(obj as THREE.Mesh).isMesh) return;
     const mesh = obj as THREE.Mesh;
-    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    for (const mat of mats) {
+    if (Array.isArray(mesh.material)) {
+      for (const mat of mesh.material) {
+        if (hasMaterialMap(mat) && mat.map.image === canvas) {
+          mat.map.needsUpdate = true;
+        }
+      }
+    } else {
+      const mat = mesh.material;
       if (hasMaterialMap(mat) && mat.map.image === canvas) {
         mat.map.needsUpdate = true;
       }
