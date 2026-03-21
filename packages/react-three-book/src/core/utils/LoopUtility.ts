@@ -14,11 +14,3 @@ export function prevIndex(index: number, arrayLength: number): number {
   if (index === 0) return arrayLength - 1;
   return index - 1;
 }
-
-/**
- * Wraps an index into the valid range [0, arrayLength) using floor-based modulo.
- * Handles negative indices correctly (unlike the JS % operator).
- */
-export function loopIndex(index: number, arrayLength: number): number {
-  return index - Math.floor(index / arrayLength) * arrayLength;
-}

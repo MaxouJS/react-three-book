@@ -52,34 +52,6 @@ const IDLE_STATE: BookState = {
   pagePaperCount: 0,
 };
 
-function snapshot(book: ThreeBook): BookState {
-  return {
-    isBuilt: book.isBuilt,
-    isTurning: book.isTurning,
-    isFalling: book.isFalling,
-    isIdle: book.isIdle,
-    isAutoTurning: book.isAutoTurning,
-    hasPendingAutoTurns: book.hasPendingAutoTurns,
-    paperCount: book.paperCount,
-    coverPaperCount: book.coverPaperCount,
-    pagePaperCount: book.pagePaperCount,
-  };
-}
-
-function equal(a: BookState, b: BookState): boolean {
-  return (
-    a.isBuilt === b.isBuilt &&
-    a.isTurning === b.isTurning &&
-    a.isFalling === b.isFalling &&
-    a.isIdle === b.isIdle &&
-    a.isAutoTurning === b.isAutoTurning &&
-    a.hasPendingAutoTurns === b.hasPendingAutoTurns &&
-    a.paperCount === b.paperCount &&
-    a.coverPaperCount === b.coverPaperCount &&
-    a.pagePaperCount === b.pagePaperCount
-  );
-}
-
 /**
  * Returns a reactive snapshot of the ThreeBook's runtime state.
  *
@@ -96,8 +68,32 @@ export function useBookState(
     const book = bookRef?.current ?? contextBook;
     if (!book) return;
 
-    const next = snapshot(book);
-    setState((prev) => (equal(prev, next) ? prev : next));
+    setState((prev) => {
+      if (
+        prev.isBuilt === book.isBuilt &&
+        prev.isTurning === book.isTurning &&
+        prev.isFalling === book.isFalling &&
+        prev.isIdle === book.isIdle &&
+        prev.isAutoTurning === book.isAutoTurning &&
+        prev.hasPendingAutoTurns === book.hasPendingAutoTurns &&
+        prev.paperCount === book.paperCount &&
+        prev.coverPaperCount === book.coverPaperCount &&
+        prev.pagePaperCount === book.pagePaperCount
+      ) {
+        return prev;
+      }
+      return {
+        isBuilt: book.isBuilt,
+        isTurning: book.isTurning,
+        isFalling: book.isFalling,
+        isIdle: book.isIdle,
+        isAutoTurning: book.isAutoTurning,
+        hasPendingAutoTurns: book.hasPendingAutoTurns,
+        paperCount: book.paperCount,
+        coverPaperCount: book.coverPaperCount,
+        pagePaperCount: book.pagePaperCount,
+      };
+    });
   });
 
   return state;

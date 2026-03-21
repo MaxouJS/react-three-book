@@ -14,7 +14,7 @@ import { BookContent } from './BookContent';
 import { BookDirection } from './BookDirection';
 import { BookBinding, BookBound } from './BookBinding';
 import { MeshFactory, RendererFactory, PaperMeshDataPool } from './Renderer';
-import type { IPageContent } from './PageContent';
+import type { IPageContent, IBookOwner, IPaperRenderer, BookRaycastHit } from './types';
 import {
   AutoTurnDirection,
   AutoTurnMode,
@@ -22,17 +22,8 @@ import {
   AutoTurnSetting,
 } from './AutoTurn';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BookRaycastHit (Book.cs lines 1607-1614)
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface BookRaycastHit {
-  point: THREE.Vector3;
-  textureCoordinate: THREE.Vector2;
-  pageContent: IPageContent | null;
-  paperIndex: number;
-  pageIndex: number;
-}
+// Re-export BookRaycastHit for consumers that import from './Book'
+export type { BookRaycastHit };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BookHeightException (Book.cs lines 1076-1079)
@@ -58,7 +49,6 @@ export interface BookOptions {
   castShadows?: boolean;
   alignToGround?: boolean;
   hideBinder?: boolean;
-  createColliders?: boolean;
   reduceShadows?: boolean;
   reduceSubMeshes?: boolean;
   reduceOverdraw?: boolean;
@@ -75,12 +65,16 @@ export interface PaperSetupInit {
   material: THREE.Material | null;
 }
 
-export class Book extends THREE.Group {
+export class Book extends THREE.Group implements IBookOwner {
   // Static instances tracking (mirrors C# static HashSet<Book>)
   private static s_Instances: Set<Book> = new Set();
+  private static s_InstancesArray: Book[] | null = null;
 
   static get instances(): Book[] {
-    return [...Book.s_Instances];
+    if (Book.s_InstancesArray === null) {
+      Book.s_InstancesArray = [...Book.s_Instances];
+    }
+    return Book.s_InstancesArray;
   }
 
   // Serialized fields
@@ -91,7 +85,6 @@ export class Book extends THREE.Group {
   private m_CastShadows: boolean = true;
   private m_AlignToGround: boolean = false;
   private m_HideBinder: boolean = false;
-  private m_CreateColliders: boolean = false;
   private m_ReduceShadows: boolean = false;
   private m_ReduceSubMeshes: boolean = false;
   private m_ReduceOverdraw: boolean = false;
@@ -150,6 +143,9 @@ export class Book extends THREE.Group {
   private m_ContentDirty = false;
   private m_StructuralDirty = false;
   private m_AppliedDirection: BookDirection | undefined = undefined;
+
+  // Front papers cache — invalidated when paper state changes
+  private _frontPapersCache: Paper[] | null = null;
 
   // ── Internal accessors ─────────────────────────────────────────────────
 
@@ -293,7 +289,7 @@ export class Book extends THREE.Group {
     return this.m_AutoTurningEndTime;
   }
 
-  /** Current open progress (0–1), read from actual paper positions. */
+  /** Current open progress (0-1), read from actual paper positions. */
   get openProgress(): number {
     return this.getCurrentOpenProgress();
   }
@@ -311,7 +307,6 @@ export class Book extends THREE.Group {
       if (options.castShadows !== undefined) this.m_CastShadows = options.castShadows;
       if (options.alignToGround !== undefined) this.m_AlignToGround = options.alignToGround;
       if (options.hideBinder !== undefined) this.m_HideBinder = options.hideBinder;
-      if (options.createColliders !== undefined) this.m_CreateColliders = options.createColliders;
       if (options.reduceShadows !== undefined) this.m_ReduceShadows = options.reduceShadows;
       if (options.reduceSubMeshes !== undefined) this.m_ReduceSubMeshes = options.reduceSubMeshes;
       if (options.reduceOverdraw !== undefined) this.m_ReduceOverdraw = options.reduceOverdraw;
@@ -340,6 +335,7 @@ export class Book extends THREE.Group {
     }
 
     Book.s_Instances.add(this);
+    Book.s_InstancesArray = null;
   }
 
   // ── Public API (methods) ───────────────────────────────────────────────
@@ -360,6 +356,8 @@ export class Book extends THREE.Group {
     for (const paper of frontPapers) {
       if (!paper.isFalling && paper.startTurning(ray)) {
         this.m_SelectedPaper = paper;
+        // Invalidate front papers cache since turning state changed
+        this._frontPapersCache = null;
         return true;
       }
     }
@@ -378,10 +376,12 @@ export class Book extends THREE.Group {
     if (this.m_SelectedPaper === null) return;
     this.m_SelectedPaper.stopTurning();
     this.m_SelectedPaper = null;
+    // Invalidate front papers cache since turning state changed
+    this._frontPapersCache = null;
   }
 
-  getActivePaperSideIndices(indices: number[]): void {
-    indices.length = 0;
+  getActivePaperSideIndices(indices: Set<number>): void {
+    indices.clear();
 
     if (!this.m_IsBuilt) return;
 
@@ -392,7 +392,7 @@ export class Book extends THREE.Group {
       let pageIndex = paperIndex * 2;
       if (isBackPage) pageIndex++;
       if (reverse) pageIndex = n * 2 - pageIndex - 1;
-      if (!indices.includes(pageIndex)) indices.push(pageIndex);
+      indices.add(pageIndex);
     };
 
     for (let i = 0; i < n; i++) {
@@ -409,13 +409,20 @@ export class Book extends THREE.Group {
       }
     }
 
-    if (indices.length === 0) {
+    if (indices.size === 0) {
       add(this.m_Papers.length - 1, true);
     }
 
-    if (reverse) indices.reverse();
+    // Note: Set iteration order matches insertion order, which is already
+    // correct for the non-reverse case. For reverse, the caller should
+    // not depend on iteration order.
   }
 
+  /**
+   * Sets the book's open progress to a value between 0 (fully closed) and 1 (fully open).
+   * This cancels any pending auto turns and immediately moves all papers to match
+   * the requested progress.
+   */
   setOpenProgress(openProgress: number): void {
     this.cancelPendingAutoTurns();
 
@@ -435,6 +442,8 @@ export class Book extends THREE.Group {
     }
 
     this.m_WasIdle = false;
+    // Invalidate front papers cache since paper states changed
+    this._frontPapersCache = null;
   }
 
   setOpenProgressByIndex(paperSideIndex: number): void {
@@ -444,6 +453,14 @@ export class Book extends THREE.Group {
 
   // ── Auto Turning ──────────────────────────────────────────────────────
 
+  /**
+   * Starts auto-turning pages in the given direction.
+   * @param direction - Which direction to turn (Next or Back)
+   * @param settings - Turn animation settings (twist, bend, duration)
+   * @param turnCount - Number of pages to turn
+   * @param delayPerTurn - Delay between consecutive turns (number in seconds, or AutoTurnSetting)
+   * @returns true if at least one turn was queued
+   */
   startAutoTurning(
     direction: AutoTurnDirection,
     settings: AutoTurnSettings,
@@ -454,7 +471,7 @@ export class Book extends THREE.Group {
 
     this.cancelPendingAutoTurns();
 
-    const delySetting = typeof delayPerTurn === 'number'
+    const delaySetting = typeof delayPerTurn === 'number'
       ? new AutoTurnSetting(delayPerTurn)
       : delayPerTurn;
 
@@ -466,7 +483,7 @@ export class Book extends THREE.Group {
       if (!this.canAutoTurn(direction)) break;
       const turnIndexTime = i / (turnCount - 1 || 1);
       const paperIndexTime = this.getAutoTurnPaperIndexTime(direction);
-      const delay = i > 0 ? delySetting.getValue(paperIndexTime, turnIndexTime) : 0;
+      const delay = i > 0 ? delaySetting.getValue(paperIndexTime, turnIndexTime) : 0;
       const mode = settings.getModeValue();
       const twist = settings.getTwistValue(paperIndexTime, turnIndexTime);
       const bend = settings.getBendValue(paperIndexTime, turnIndexTime);
@@ -476,6 +493,8 @@ export class Book extends THREE.Group {
     }
 
     this.m_AutoTurnTimer = 0;
+    // Invalidate front papers cache since auto-turning will change paper states
+    this._frontPapersCache = null;
     return true;
   }
 
@@ -508,6 +527,8 @@ export class Book extends THREE.Group {
     );
 
     this.m_AutoTurnQueue.shift();
+    // Invalidate front papers cache since a paper started auto-turning
+    this._frontPapersCache = null;
 
     if (this.m_AutoTurnQueue.length > 0) {
       this.m_AutoTurnTimer = this.m_AutoTurnQueue[0].delay;
@@ -560,6 +581,7 @@ export class Book extends THREE.Group {
    */
   init(): void {
     Book.s_Instances.add(this);
+    Book.s_InstancesArray = null;
     this.hardClear();
 
     if (this.m_BuildOnAwake) {
@@ -571,8 +593,9 @@ export class Book extends THREE.Group {
   }
 
   /**
-   * Call every frame with delta time.
+   * Call every frame with delta time in seconds.
    * Equivalent to Unity's LateUpdate.
+   * @param dt - Delta time in seconds since the last frame
    */
   update(dt: number): void {
     this.m_CurrentTime += dt;
@@ -617,13 +640,23 @@ export class Book extends THREE.Group {
         }
       }
 
+      // Invalidate front papers cache after falling updates (paper states may have changed)
+      this._frontPapersCache = null;
+
       this.updateLivePages();
       this.m_Bound.onLateUpdate();
     }
   }
 
+  /**
+   * Dispose the book and release all resources.
+   * MANDATORY: You must call dispose() when removing a Book to prevent memory leaks.
+   * The Book holds a reference in the static `s_Instances` set; without dispose(),
+   * it will never be garbage collected.
+   */
   dispose(): void {
     Book.s_Instances.delete(this);
+    Book.s_InstancesArray = null;
     this.hardClear();
   }
 
@@ -642,8 +675,6 @@ export class Book extends THREE.Group {
       this.m_Root = root;
       this.m_RendererFactory = new RendererFactory(this.m_Root);
     }
-
-    this.m_RendererFactory.createColliders = this.m_CreateColliders;
 
     this.m_Direction = this.m_Content.direction;
 
@@ -694,7 +725,7 @@ export class Book extends THREE.Group {
       const isCover = this.m_HasCover && (i < halfCoverPaperCount || i >= pc - halfCoverPaperCount);
 
       const bookRenderer = this.m_RendererFactory!.get('Paper');
-      const paper = (this.m_Papers[i] = new Paper(isCover, i, this as unknown as import('./Paper').IBookOwner, bookRenderer as unknown as import('./Paper').IPaperRenderer));
+      const paper = (this.m_Papers[i] = new Paper(isCover, i, this, bookRenderer));
       paper.renderer.castShadows = this.m_CastShadows;
 
       if (i < Math.round(THREE.MathUtils.lerp(0, pc, openState))) {
@@ -751,8 +782,8 @@ export class Book extends THREE.Group {
     const midIndexA = Math.floor(pc / 2) - 1;
     const midIndexB = midIndexA + 1;
 
-    // StapleBookBinding detection — check if bound has staple-specific property
-    const isStapleBookBinding = this.m_Bound.constructor.name.includes('Staple');
+    // StapleBookBinding detection — use discriminant property instead of constructor name
+    const isStapleBookBinding = this.m_Bound?.bindingType === 'staple';
 
     for (let i = 0; i < pc; i++) {
       const paper = this.m_Papers[i];
@@ -774,21 +805,30 @@ export class Book extends THREE.Group {
 
     this.m_IsBuilt = true;
     this.m_RendererIds = this.m_RendererFactory!.ids;
+    // Invalidate front papers cache after rebuild
+    this._frontPapersCache = null;
 
     // Skip GPU instancing (Unity-specific)
 
     this.update(0);
-    this.m_Bound.binderRenderer.updateCollider();
 
     this.m_CoverPaperSetup.bookDirection = BookDirection.LeftToRight;
     this.m_PagePaperSetup.bookDirection = BookDirection.LeftToRight;
   }
 
+  /**
+   * Clears the built state of the book.
+   * NOTE: This does NOT call super.clear() — it has different semantics from
+   * THREE.Group.clear(). It resets internal book state (papers, bound, flags)
+   * without removing children from the Three.js scene graph.
+   */
   override clear(): this {
     this.m_CoverPaperCount = this.m_PagePaperCount = 0;
     this.m_IsBuilt = false;
     this.m_WasIdle = false;
+    this.m_Bound?.dispose();
     this.m_Bound = null;
+    this._frontPapersCache = null;
 
     if (this.m_MeshFactory !== null) this.m_MeshFactory.recycle();
     if (this.m_RendererFactory !== null) this.m_RendererFactory.recycle();
@@ -799,7 +839,9 @@ export class Book extends THREE.Group {
     this.m_CoverPaperCount = this.m_PagePaperCount = 0;
     this.m_IsBuilt = false;
     this.m_WasIdle = false;
+    this.m_Bound?.dispose();
     this.m_Bound = null;
+    this._frontPapersCache = null;
 
     // Remove root child
     if (this.m_Root !== null) {
@@ -844,6 +886,10 @@ export class Book extends THREE.Group {
   // ── Query methods ─────────────────────────────────────────────────────
 
   private getFrontPapers(): Paper[] {
+    if (this._frontPapersCache !== null) {
+      return this._frontPapersCache;
+    }
+
     const frontPapers: Paper[] = [];
 
     if (this.m_SelectedPaper !== null) {
@@ -865,6 +911,7 @@ export class Book extends THREE.Group {
       }
     }
 
+    this._frontPapersCache = frontPapers;
     return frontPapers;
   }
 

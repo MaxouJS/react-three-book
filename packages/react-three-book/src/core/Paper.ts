@@ -26,64 +26,16 @@ import * as TextureUtility from './utils/TextureUtility';
 import { PaperUVMargin } from './PaperUVMargin';
 import { PaperMeshDataPool } from './Renderer';
 import { BookDirection } from './BookDirection';
+import { clamp, clamp01, lerp, lerpUnclamped, inverseLerp, DEG2RAD, RAD2DEG } from './mathUtils';
+import type { IPageContent, IBookOwner, IPaperRenderer, BookRaycastHit } from './types';
+import { AutoTurnMode } from './types';
 
-// ---------------------------------------------------------------------------
-// Forward-declared interfaces (avoid circular deps)
-// ---------------------------------------------------------------------------
+// Re-export types that were previously exported from this file
+export type { IPageContent, IBookOwner, IPaperRenderer, BookRaycastHit };
+export { AutoTurnMode };
 
-/** Mirrors C# IPageContent */
-export interface IPageContent {
-  texture: THREE.Texture | null;
-  textureST: THREE.Vector4;
-  isPointOverUI(textureCoord: THREE.Vector2): boolean;
-  init(bookContent: unknown): void;
-  setActive(active: boolean): void;
-}
-
-/** Mirrors C# BookRaycastHit struct */
-export interface BookRaycastHit {
-  point: THREE.Vector3;
-  textureCoordinate: THREE.Vector2;
-  pageContent: IPageContent | null;
-  paperIndex: number;
-  pageIndex: number;
-}
-
-/** Mirrors C# AutoTurnMode enum */
-export enum AutoTurnMode {
-  Surface = 0,
-  Edge = 1,
-}
-
-/**
- * Minimal interface the Paper class expects from the Book owner.
- * Keeps the file self-contained without importing the full Book class.
- */
-export interface IBookOwner {
-  bound: IBookBound;
-  castShadows: boolean;
-  reduceShadows: boolean;
-  direction: BookDirection;
-}
-
-/** Minimal interface for BookBound as used by Paper */
-export interface IBookBound {
-  resetPaperPosition(paper: Paper): void;
-  updatePaperPosition(paper: Paper): void;
-}
-
-/**
- * Minimal wrapper mirroring the C# Renderer helper class used by Paper.
- * In Three.js this maps to THREE.Mesh + THREE.Object3D.
- */
-export interface IPaperRenderer {
-  readonly transform: THREE.Object3D;
-  mesh: THREE.BufferGeometry | null;
-  castShadows: boolean;
-  setMaterials(materials: THREE.Material[]): void;
-  setPropertyBlock(props: Record<string, unknown>, materialIndex: number): void;
-  readonly bounds: THREE.Box3;
-}
+// Also re-export IBookBound from types for any consumers
+export type { IBookBound } from './types';
 
 // ---------------------------------------------------------------------------
 // Internal enum (matches C# MeshDataType)
@@ -96,33 +48,11 @@ enum MeshDataType {
 }
 
 // ---------------------------------------------------------------------------
-// Mathf helpers (Unity compatibility)
+// Constants
 // ---------------------------------------------------------------------------
 
-const DEG2RAD = Math.PI / 180;
-const RAD2DEG = 180 / Math.PI;
-const EPSILON = 1.192093e-7; // float epsilon, matches Unity Mathf.Epsilon
-
-function clamp01(v: number): number {
-  return v < 0 ? 0 : v > 1 ? 1 : v;
-}
-
-function clamp(v: number, min: number, max: number): number {
-  return v < min ? min : v > max ? max : v;
-}
-
-function inverseLerp(a: number, b: number, value: number): number {
-  if (a !== b) return clamp01((value - a) / (b - a));
-  return 0;
-}
-
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
-
-function lerpUnclamped(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
+// C# float.Epsilon (32-bit); JS uses 64-bit doubles. Used as "essentially zero" threshold.
+const EPSILON = 1.192093e-7;
 
 /** Unity's exact SmoothStep: clamp01((t-from)/(to-from)); t*t*(3-2*t) */
 function smoothStep(from: number, to: number, t: number): number {
@@ -199,6 +129,35 @@ export class Paper {
 
   // Auto-set property
   public sizeXOffset: number = 0;
+
+  // Pre-allocated scratch vectors for updateCylinder/updateTime/clampHandle
+  // to avoid per-frame GC pressure.
+  //
+  // Allocation map:
+  //   updateCylinder: _ucStartHandle, _ucCurrentHandle, _ucHandleDir, _ucA, _ucB, _ucMid, _ucRollResult
+  //   updateTime:     _utV1, _utV2, _utV3, _utV4, _utAB, _utCD
+  //   clampHandle:    _chP, _chA, _chC
+  private readonly _ucStartHandle = new THREE.Vector3();
+  private readonly _ucCurrentHandle = new THREE.Vector3();
+  private readonly _ucHandleDir = new THREE.Vector3();
+  private readonly _ucA = new THREE.Vector3();
+  private readonly _ucB = new THREE.Vector3();
+  private readonly _ucMid = new THREE.Vector3();
+  private readonly _ucRollResult = new THREE.Vector3();
+  private readonly _ucCylDir = new THREE.Vector3();
+
+  private readonly _utV1 = new THREE.Vector3();
+  private readonly _utV2 = new THREE.Vector3();
+  private readonly _utV3 = new THREE.Vector3();
+  private readonly _utV4 = new THREE.Vector3();
+
+  private readonly _chP = new THREE.Vector3();
+  private readonly _chA = new THREE.Vector3();
+  private readonly _chC = new THREE.Vector3();
+  private readonly _chEllipseCenter1 = new THREE.Vector2();
+  private readonly _chEllipseCenter2 = new THREE.Vector2();
+  private readonly _chEllipseSize1 = new THREE.Vector2();
+  private readonly _chEllipseSize2 = new THREE.Vector2();
 
   // ---- Properties (mirrors C#) ----
 
@@ -338,17 +297,6 @@ export class Paper {
     return !this.m_IsFalling && !this.m_IsTurning;
   }
 
-  public get isInMiddelOfStack(): boolean {
-    if (this.m_Prev === null || this.m_Next === null) return false;
-
-    return (
-      this.isIdle &&
-      this.m_Prev.isIdle &&
-      this.m_Next.isIdle &&
-      this.m_Prev.isOnRightStack === this.m_Next.isOnRightStack
-    );
-  }
-
   // ---- Constructor ----
 
   constructor(isCover: boolean, index: number, book: IBookOwner, renderer: IPaperRenderer) {
@@ -394,7 +342,7 @@ export class Paper {
     this.m_IsFalling = false;
     this.m_IsAutoTurning = false;
     this.m_Transform.scale.set(rightStack ? 1 : -1, 1, 1);
-    this.m_Book.bound.resetPaperPosition(this);
+    this.m_Book.bound!.resetPaperPosition(this);
   }
 
   public restMesh(): void {
@@ -540,7 +488,7 @@ export class Paper {
     if (ray.intersectPlane(this.m_WorldPlane, target) !== null) {
       const hit = target;
 
-      this.m_Book.bound.resetPaperPosition(this);
+      this.m_Book.bound!.resetPaperPosition(this);
 
       // transform.InverseTransformPoint(hit)
       this.m_CurrentHandle.copy(
@@ -616,7 +564,7 @@ export class Paper {
         this.m_IsFalling = false;
         this.switchMeshData(MeshDataType.Lowpoly);
         this.m_ZTime = this.m_Transform.scale.x === -1 ? 1 : 0;
-        this.m_Book.bound.updatePaperPosition(this);
+        this.m_Book.bound!.updatePaperPosition(this);
         this.updateMaterials();
       } else {
         this.m_ZTime = this.m_Transform.scale.x === -1 ? 1 : 0;
@@ -897,10 +845,12 @@ export class Paper {
 
   public updateTime(): void {
     if (this.isTurning || this.isFalling) {
-      const t0 = this.findTime(new THREE.Vector3(this.m_Size.x, 0, 0));
-      const t1 = this.findTime(
-        new THREE.Vector3(this.m_Size.x, 0, this.m_Size.y),
-      );
+      // Reuse scratch vectors instead of allocating new ones
+      this._utV1.set(this.m_Size.x, 0, 0);
+      const t0 = this.findTime(this._utV1);
+
+      this._utV2.set(this.m_Size.x, 0, this.m_Size.y);
+      const t1 = this.findTime(this._utV2);
 
       this.m_XTime = lerp(
         Math.min(t0, t1),
@@ -911,20 +861,23 @@ export class Paper {
       const xs = this.m_MeshData.pattern.baseXArray;
       const zs = this.m_MeshData.pattern.baseZArray;
 
-      const a = this.rollPoint(new THREE.Vector3(xs[1], 0, 0));
-      const b = this.rollPoint(new THREE.Vector3(xs[2], 0, 0));
+      this._utV1.set(xs[1], 0, 0);
+      const a = this.rollPoint(this._utV1);
+      this._utV2.set(xs[2], 0, 0);
+      const b = this.rollPoint(this._utV2);
 
-      const c = this.rollPoint(
-        new THREE.Vector3(xs[1], 0, zs[zs.length - 1]),
-      );
-      const d = this.rollPoint(
-        new THREE.Vector3(xs[2], 0, zs[zs.length - 1]),
-      );
+      this._utV3.set(xs[1], 0, zs[zs.length - 1]);
+      const c = this.rollPoint(this._utV3);
+      this._utV4.set(xs[2], 0, zs[zs.length - 1]);
+      const d = this.rollPoint(this._utV4);
 
-      const ab = b.clone().sub(a).normalize();
-      const cd = d.clone().sub(c).normalize();
-      const z0 = RAD2DEG * Math.atan2(ab.y, ab.x);
-      const z1 = RAD2DEG * Math.atan2(cd.y, cd.x);
+      // ab = (b - a).normalize()  — compute inline without clone
+      const abx = b.x - a.x, aby = b.y - a.y;
+      const cdx = d.x - c.x, cdy = d.y - c.y;
+      const abLen = Math.sqrt(abx * abx + aby * aby) || 1;
+      const cdLen = Math.sqrt(cdx * cdx + cdy * cdy) || 1;
+      const z0 = RAD2DEG * Math.atan2(aby / abLen, abx / abLen);
+      const z1 = RAD2DEG * Math.atan2(cdy / cdLen, cdx / cdLen);
       const zAvg = (z0 + z1) / 2;
 
       this.m_ZTime = zAvg / 180;
@@ -943,19 +896,14 @@ export class Paper {
     this.m_StartHandle.y = 0;
     this.m_CurrentHandle.y = 0;
 
-    const p = this.m_CurrentHandle.clone();
+    const p = this._chP.copy(this.m_CurrentHandle);
 
     //c    c   d
     //     |  start
     //end  |
     //a    a   b
-    // (Unused a,b,c,d are overwritten below — preserved for clarity)
-    // let a = new THREE.Vector3(-this.m_Size.x, 0, 0);
-    // let c = new THREE.Vector3(-this.m_Size.x, 0, this.m_Size.y);
-    // let b = new THREE.Vector3(this.m_Size.x, 0, 0);
-    // let d = new THREE.Vector3(this.m_Size.x, 0, this.m_Size.y);
-    const a = new THREE.Vector3(0, 0, 0);
-    const c = new THREE.Vector3(0, 0, this.m_Size.y);
+    const a = this._chA.set(0, 0, 0);
+    const c = this._chC.set(0, 0, this.m_Size.y);
 
     const ra = a.distanceTo(this.m_StartHandle);
     const rc = c.distanceTo(this.m_StartHandle);
@@ -964,16 +912,16 @@ export class Paper {
     const rcz = Math.max(rc - this.m_TurningRadius, 0.01);
     const z0 = this.m_StartHandle.z;
 
-    const aEllipseCenter = new THREE.Vector2(
+    const aEllipseCenter = this._chEllipseCenter1.set(
       0,
       z0 + (a.z - z0) * (raz / ra),
     );
-    const cEllipseCenter = new THREE.Vector2(
+    const cEllipseCenter = this._chEllipseCenter2.set(
       0,
       z0 + (c.z - z0) * (rcz / rc),
     );
-    const aEllipseSize = new THREE.Vector2(ra, raz);
-    const cEllipseSize = new THREE.Vector2(rc, rcz);
+    const aEllipseSize = this._chEllipseSize1.set(ra, raz);
+    const cEllipseSize = this._chEllipseSize2.set(rc, rcz);
 
     p.x = clamp(p.x, -this.m_Size.x, this.m_Size.x);
 
@@ -998,42 +946,37 @@ export class Paper {
   }
 
   private updateCylinder(): void {
-    const startHandle = this.m_StartHandle.clone();
-    const currentHandle = this.m_CurrentHandle.clone();
+    const startHandle = this._ucStartHandle.copy(this.m_StartHandle);
+    const currentHandle = this._ucCurrentHandle.copy(this.m_CurrentHandle);
 
-    const handleDirection = startHandle
-      .clone()
+    const handleDirection = this._ucHandleDir
+      .copy(startHandle)
       .sub(currentHandle)
       .normalize();
     if (handleDirection.length() === 0) handleDirection.set(1, 0, 0);
 
-    const a = startHandle
-      .clone()
-      .sub(
-        handleDirection
-          .clone()
-          .multiplyScalar(
-            this.m_Size.x * 2 + this.m_TurningRadius * Math.PI,
-          ),
-      );
-    const b = startHandle.clone();
+    // a = startHandle - handleDirection * (size.x * 2 + turningRadius * PI)
+    const offset = this.m_Size.x * 2 + this.m_TurningRadius * Math.PI;
+    const a = this._ucA.copy(startHandle).sub(
+      this._ucCylDir.copy(handleDirection).multiplyScalar(offset),
+    );
+    const b = this._ucB.copy(startHandle);
 
     const cylinder = new Cylinder();
     cylinder.radius = this.m_TurningRadius;
-    cylinder.direction = new THREE.Vector3(
-      -handleDirection.z,
-      0,
-      handleDirection.x,
-    );
+    this._ucCylDir.set(-handleDirection.z, 0, handleDirection.x);
+    cylinder.direction = this._ucCylDir;
 
     for (let i = 0; i < 100; i++) {
-      cylinder.position = a
-        .clone()
-        .add(b)
-        .multiplyScalar(0.5);
+      // cylinder.position = (a + b) * 0.5
+      this._ucMid.copy(a).add(b).multiplyScalar(0.5);
+      cylinder.position = this._ucMid;
       this.m_Cylinder = cylinder;
-      this.m_Book.bound.updatePaperPosition(this);
-      const v = cylinder.rollPoint(startHandle.clone());
+      this.m_Book.bound!.updatePaperPosition(this);
+      // rollPoint mutates its argument in the new Cylinder implementation,
+      // so pass a copy via scratch vector
+      this._ucRollResult.copy(startHandle);
+      const v = cylinder.rollPoint(this._ucRollResult);
       if (Math.abs(currentHandle.x - v.x) < 0.0001) break;
 
       if (v.x > currentHandle.x) {
@@ -1048,11 +991,6 @@ export class Paper {
     if (this.m_IsRolling) return this.m_Cylinder.rollPoint(point);
 
     return point;
-  }
-
-  public drawWireframe(_color: unknown): void {
-    // Editor-only debug visualisation — no-op in Three.js
-    // m_MeshData.DrawWireframe(transform.localToWorldMatrix, color);
   }
 
   public startAutoTurning(

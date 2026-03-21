@@ -15,54 +15,12 @@ import {
   addFrontAndBackTexcoords,
 } from './PaperMeshUtility';
 import { BookBinding, BookBound } from './BookBinding';
+import { BookHeightException } from './Book';
 import type { Book } from './Book';
+import type { Paper } from './Paper';
 import type { RendererFactory, MeshFactory } from './Renderer';
 import type { BookDirection } from './BookDirection';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Forward-declared interfaces for types that will be ported separately.
-// These mirror the C# classes referenced by StapleBookBinding.
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Minimal Book interface consumed by the binding. */
-export interface IBook {
-  readonly totalThickness: number;
-  readonly minPaperWidth: number;
-  readonly minPaperHeight: number;
-  readonly maxPaperThickness: number;
-  readonly minPaperThickness: number;
-  readonly papers: IPaper[];
-  readonly hasCover: boolean;
-  readonly coverPaperCount: number;
-  readonly alignToGround: boolean;
-  readonly castShadows: boolean;
-  readonly direction: number; // BookDirection enum value
-  readonly coverPaperSetup: { thickness: number; margin: number };
-  readonly pagePaperSetup: { margin: number };
-}
-
-/** Minimal Paper interface consumed by the binding. */
-export interface IPaper {
-  readonly index: number;
-  thickness: number;
-  size: THREE.Vector2;
-  sizeXOffset: number;
-  readonly margin: number;
-  readonly zTime: number;
-  readonly isFlipped: boolean;
-  readonly isTurning: boolean;
-  readonly isFalling: boolean;
-  readonly transform: THREE.Object3D;
-  readonly meshData: {
-    readonly pattern: { baseXArray: number[]; baseZArray: number[]; xNoneSeamIndexes: number[] };
-    baseVertices: THREE.Vector3[];
-  };
-  setMinTurningRadius(radius: number): void;
-  updateTurningRadius(): void;
-  updateTime(): void;
-  updateMesh(): void;
-  getDirection(z: number): THREE.Vector3;
-}
+import { clamp, clamp01, lerp, inverseLerp, DEG2RAD, RAD2DEG } from './mathUtils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StapleSetup  (ported from StapleBookBinding.cs lines ~799-888)
@@ -76,23 +34,6 @@ const kMinCount = 2;
 const kMaxCount = 10;
 const kMinQuality = 0;
 const kMaxQuality = 5;
-
-function clamp(v: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, v));
-}
-
-function clamp01(v: number): number {
-  return Math.max(0, Math.min(1, v));
-}
-
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
-
-function inverseLerp(a: number, b: number, v: number): number {
-  if (a === b) return 0;
-  return clamp01((v - a) / (b - a));
-}
 
 // Unity Quaternion.LookRotation(forward, up):
 // +Z points to `forward`, +Y aligns with `up`.
@@ -113,9 +54,6 @@ function lookRotation(forward: THREE.Vector3, up: THREE.Vector3): THREE.Quaterni
   const m = new THREE.Matrix4().makeBasis(x, y, z);
   return new THREE.Quaternion().setFromRotationMatrix(m);
 }
-
-const DEG2RAD = Math.PI / 180;
-const RAD2DEG = 180 / Math.PI;
 
 export class StapleSetup {
   private _material: THREE.Material | null = null;
@@ -177,23 +115,12 @@ export class StapleSetup {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BookHeightException
-// ─────────────────────────────────────────────────────────────────────────────
-
-export class BookHeightException extends Error {
-  constructor() {
-    super('Book height is too large relative to paper width.');
-    this.name = 'BookHeightException';
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // StapleBookBound  (ported from StapleBookBinding.cs class StapleBookBound)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export class StapleBookBound {
-  private m_Book: IBook;
-  private m_Root: THREE.Object3D;
+export class StapleBookBound extends BookBound {
+  /** Discriminant property for runtime type checks (avoids constructor.name). */
+  override readonly bindingType = 'staple' as const;
 
   /** The Three.js Mesh for the staple geometry. */
   public stapleMesh: THREE.Mesh;
@@ -228,12 +155,11 @@ export class StapleBookBound {
   constructor(
     quality: number,
     stapleSetup: StapleSetup,
-    book: IBook,
+    book: Book,
     root: THREE.Object3D,
     stapleMaterial?: THREE.Material,
   ) {
-    this.m_Book = book;
-    this.m_Root = root;
+    super(book, root);
     this.m_Quality = quality;
 
     if (book.totalThickness * 1.25 > book.minPaperWidth) {
@@ -730,7 +656,7 @@ export class StapleBookBound {
 
   // ── resetPaperPosition ────────────────────────────────────────────────
 
-  public resetPaperPosition(paper: IPaper): void {
+  public resetPaperPosition(paper: Paper): void {
     const papers = this.m_Book.papers;
     const paperCount = papers.length;
     let th = 0;
@@ -804,62 +730,23 @@ export class StapleBookBound {
   // ── getPX  (private helper) ───────────────────────────────────────────
 
   private getPX(index: number, thickness: number): number {
-    const papers = this.m_Book.papers;
-    const paperCount = papers.length;
-    let th = 0;
-    const midIndex0 = papers.length / 2 - 1;
-    const midIndex1 = papers.length / 2;
-    for (let j = 0; j < paperCount; j++) {
-      const zTime = 0;
-      th += zTime * thickness;
-      if (j === midIndex0) {
-        th += zTime * this.m_BindingMidSpace / 2;
-      }
-
-      if (j === midIndex1) {
-        th += zTime * this.m_BindingMidSpace / 2;
-      }
-    }
-
+    // zTime is always 0, so th is always 0 — the loop was dead computation.
     const h = this.getStackHeight(index) - thickness / 2;
     const rightStackZ = this.getStackZ(h);
-    const leftStackZ = 180 + rightStackZ;
-    const t = 0;
-    const z = lerp(rightStackZ, leftStackZ, t);
-    // Quaternion.Euler(0, 0, z) * Vector3.right * m_BindingRadius
-    const zRad = z * DEG2RAD;
-    const p = new THREE.Vector3(
-      Math.cos(zRad) * this.m_BindingRadius,
-      Math.sin(zRad) * this.m_BindingRadius,
-      0,
-    );
-
-    return p.x;
+    // t=0 so z = rightStackZ
+    const zRad = rightStackZ * DEG2RAD;
+    return Math.cos(zRad) * this.m_BindingRadius;
   }
 
   // ── updatePaperPosition ───────────────────────────────────────────────
 
-  public updatePaperPosition(paper: IPaper): void {
+  public updatePaperPosition(paper: Paper): void {
+    this.updatePaperPositionWithTh(paper, this.computeTh());
+  }
+
+  private updatePaperPositionWithTh(paper: Paper, th: number): void {
     const papers = this.m_Book.papers;
     const paperCount = papers.length;
-    let th = 0;
-    const midIndex0 = papers.length / 2 - 1;
-    const midIndex1 = papers.length / 2;
-    for (let j = 0; j < paperCount; j++) {
-      const paper2 = papers[j];
-      paper2.updateTime();
-      const zTime = paper2.zTime;
-      const thickness = paper2.thickness;
-      th += zTime * thickness;
-
-      if (j === midIndex0) {
-        th += zTime * this.m_BindingMidSpace / 2;
-      }
-
-      if (j === midIndex1) {
-        th += zTime * this.m_BindingMidSpace / 2;
-      }
-    }
 
     const h = this.getStackHeight(paper.index) - paper.thickness / 2;
     const rightStackZ = this.getStackZ(h + th);
@@ -934,10 +821,28 @@ export class StapleBookBound {
 
   // ── onLateUpdate ──────────────────────────────────────────────────────
 
+  /** Precompute cumulative th once instead of per-paper (O(n) instead of O(n^2)). */
+  private computeTh(): number {
+    const papers = this.m_Book.papers;
+    const midIndex0 = papers.length / 2 - 1;
+    const midIndex1 = papers.length / 2;
+    let th = 0;
+    for (let j = 0; j < papers.length; j++) {
+      const p = papers[j];
+      p.updateTime();
+      const zTime = p.zTime;
+      th += zTime * p.thickness;
+      if (j === midIndex0) th += zTime * this.m_BindingMidSpace / 2;
+      if (j === midIndex1) th += zTime * this.m_BindingMidSpace / 2;
+    }
+    return th;
+  }
+
   public onLateUpdate(): void {
     const papers = this.m_Book.papers;
+    const th = this.computeTh();
     for (const paper of papers) {
-      this.updatePaperPosition(paper);
+      this.updatePaperPositionWithTh(paper, th);
     }
 
     // Force world-matrix recomputation after position/rotation changes
@@ -1100,6 +1005,17 @@ export class StapleBookBound {
   get stapleThickness(): number {
     return this.m_StapleThickness;
   }
+
+  /** Releases GPU resources held by the staple mesh. */
+  dispose(): void {
+    this.stapleMesh.geometry.dispose();
+    if (this.stapleMesh.material instanceof THREE.Material) {
+      this.stapleMesh.material.dispose();
+    }
+    if (this.stapleMesh.parent) {
+      this.stapleMesh.parent.remove(this.stapleMesh);
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1116,10 +1032,6 @@ export class StapleRendererAdapter {
 
   setVisibility(visible: boolean): void {
     this.mesh.visible = visible;
-  }
-
-  updateCollider(): void {
-    // No-op — Three.js raycasts directly against mesh geometry.
   }
 
   get castShadows(): boolean {
@@ -1169,8 +1081,8 @@ export class StapleBookBinding extends BookBinding {
     return new StapleBookBound(
       this.quality,
       this.stapleSetup,
-      book as unknown as IBook,
+      book,
       root,
-    ) as unknown as BookBound;
+    );
   }
 }

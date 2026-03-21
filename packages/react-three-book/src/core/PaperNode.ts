@@ -54,19 +54,6 @@ export class PaperNode {
     return node;
   }
 
-  // C# had a double overload — in TS numbers are already IEEE 754 doubles.
-  // Keeping a separate method for parity; it simply casts to number.
-  public createNextFromDouble(
-    value: number,
-    hole: boolean = false,
-    seam: boolean = false,
-  ): PaperNode {
-    const node = new PaperNode(value, hole, seam);
-    node.prev = this;
-    this.next = node;
-    return node;
-  }
-
   // ── Insertion (sorted linked-list insert) ─────────────────────────────
 
   public insert(node: PaperNode): boolean {

@@ -9,18 +9,10 @@
 
 import * as THREE from 'three';
 import type { BookContent } from './BookContent';
+import type { IPageContent } from './types';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// IPageContent interface (PageContent.cs lines 8-17)
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface IPageContent {
-  readonly texture: THREE.Texture | null;
-  readonly textureST: THREE.Vector4;
-  isPointOverUI(textureCoord: THREE.Vector2): boolean;
-  init(bookContent: BookContent): void;
-  setActive(active: boolean): void;
-}
+// Re-export so existing consumers can still import from here
+export type { IPageContent };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PageContent abstract class (PageContent.cs lines 19-70)

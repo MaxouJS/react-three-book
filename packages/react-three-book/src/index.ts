@@ -85,6 +85,7 @@ export type { Keyframe } from './core/AutoTurn';
 
 export { BookRenderer, RendererFactory, MeshFactory, PaperMeshDataPool } from './core/Renderer';
 export type { IPageContent } from './core/PageContent';
+export type { PropertyBlock } from './core/types';
 export { PageContent, SpritePageContent2 } from './core/PageContent';
 
 export { TextBlock } from './core/TextBlock';

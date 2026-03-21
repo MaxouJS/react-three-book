@@ -3,7 +3,6 @@
  *
  * Faithful line-by-line port of:
  *   - AutoTurnDirection enum
- *   - AutoTurnMode enum
  *   - AutoTurnSettings class
  *   - AutoTurnSetting struct (→ class with clone())
  *   - AutoTurnSettingMode enum
@@ -12,6 +11,12 @@
  * Unity `AnimationCurve` is approximated by a simple keyframe array
  * with linear interpolation (evaluate).
  */
+
+import { clamp, inverseLerp } from './mathUtils';
+import { AutoTurnMode } from './types';
+
+// Re-export so existing consumers can still import from here
+export { AutoTurnMode };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AutoTurnDirection  (Book.cs ~1084-1095)
@@ -25,20 +30,6 @@ export enum AutoTurnDirection {
   Next = 0,
   /** Indicates the previous page direction. */
   Back = 1,
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// AutoTurnMode  (Book.cs ~1100-1111)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Defines the mode for auto page turning.
- */
-export enum AutoTurnMode {
-  /** This mode simulates swiping the paper surface to turn it. */
-  Surface = 0,
-  /** This mode simulates holding the paper edge and turning it. */
-  Edge = 1,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -134,15 +125,6 @@ export class AnimationCurve {
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-function inverseLerp(a: number, b: number, v: number): number {
-  if (a === b) return 0;
-  return clamp((v - a) / (b - a), 0, 1);
-}
 
 function randomRange(min: number, max: number): number {
   return min + Math.random() * (max - min);

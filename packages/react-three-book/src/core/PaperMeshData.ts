@@ -5,7 +5,6 @@ import {
   updateXSeams,
   updateZSeams,
   updateBorders,
-  drawWireframe,
 } from './PaperMeshUtility';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -248,18 +247,4 @@ export class PaperMeshData {
     this.m_Geometry.computeBoundingSphere();
   }
 
-  // ── DrawWireframe (debug) ──────────────────────────────────────────────
-
-  /**
-   * Returns wireframe quad data for debug visualisation.
-   *
-   * Ported from lines ~2257-2262.
-   */
-  public drawWireframe(
-    matrix: THREE.Matrix4,
-  ): Array<[THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3]> {
-    const nX = this.m_Pattern.baseXArray.length;
-    const nZ = this.m_Pattern.baseZArray.length;
-    return drawWireframe(this.m_Vertices, nX, nZ, matrix);
-  }
 }

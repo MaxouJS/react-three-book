@@ -19,10 +19,26 @@ export class Cylinder {
   private m_EulerY: number = 0;
   private m_Radius: number = 0;
 
+  // Pre-allocated scratch vectors to avoid per-frame allocations.
+  //
+  // Allocation map (each method owns its scratch vectors exclusively):
+  //   rollPoint: _scratchRP1, _scratchRP2
+  //   roll:      _scratchRollClosest, _scratchRollEuler (via eulerRotateVector)
+  //   getOffset: _scratchOffsetRoll (passed to roll as the point)
+  //              roll's own scratches (_scratchRollClosest, _scratchRollEuler) are reused
+  //   position:  _positionOut
+  private readonly _positionOut = new THREE.Vector3();
+  private readonly _scratchRP1 = new THREE.Vector3();
+  private readonly _scratchRP2 = new THREE.Vector3();
+  private readonly _scratchRollClosest = new THREE.Vector3();
+  private readonly _scratchRollEuler = new THREE.Vector3();
+  private readonly _scratchOffsetRoll = new THREE.Vector3();
+
   // ── Properties ────────────────────────────────────────────────────────
 
+  /** Returns internal vector — do NOT mutate. Copy if you need to store it. */
   get position(): THREE.Vector3 {
-    return new THREE.Vector3(this.m_PositionX, 0, this.m_PositionZ);
+    return this._positionOut.set(this.m_PositionX, 0, this.m_PositionZ);
   }
 
   set position(value: THREE.Vector3) {
@@ -44,7 +60,21 @@ export class Cylinder {
   // ── Public API ────────────────────────────────────────────────────────
 
   public rollPoint(point: THREE.Vector3): THREE.Vector3 {
-    return this.roll(point.clone()).sub(this.getOffset(point.clone()));
+    // Compute rolled = roll(point.clone()) and offset = getOffset(point.clone())
+    // then return rolled - offset.
+    //
+    // _scratchRP1 holds the rolled result, _scratchRP2 holds the offset result.
+    // roll() and getOffset() share _scratchRollClosest/_scratchRollEuler internally,
+    // but each call completes before the next starts, so no aliasing issue.
+    this._scratchRP1.copy(point);
+    this.roll(this._scratchRP1);
+
+    this._scratchRP2.copy(point);
+    this.getOffset(this._scratchRP2);
+
+    // Write result back into point
+    point.copy(this._scratchRP1).sub(this._scratchRP2);
+    return point;
   }
 
   // ── Private helpers ───────────────────────────────────────────────────
@@ -56,11 +86,14 @@ export class Cylinder {
    *   1. Rotate (x, 0, 0) by Z degrees around Z-axis.
    *   2. Rotate by X degrees around X-axis (X = 0 here, so skip).
    *   3. Rotate by Y degrees around Y-axis.
+   *
+   * Writes result into `out` and returns it.
    */
   private eulerRotateVector(
     x: number,
     eulerY: number,
     eulerZ: number,
+    out: THREE.Vector3,
   ): THREE.Vector3 {
     const zRad = (eulerZ * Math.PI) / 180;
     const yRad = (eulerY * Math.PI) / 180;
@@ -79,38 +112,60 @@ export class Cylinder {
     const fy = ry;
     const fz = -rx * sinY + rz * cosY;
 
-    return new THREE.Vector3(fx, fy, fz);
+    return out.set(fx, fy, fz);
   }
 
+  /**
+   * Rolls `point` in place around the cylinder. Mutates and returns `point`.
+   * Uses _scratchRollClosest for closest-point calculation and
+   * _scratchRollEuler for euler rotation result.
+   */
   private roll(point: THREE.Vector3): THREE.Vector3 {
     if (this.getSide(point) >= 0) return point;
 
-    const closestPoint = this.getClosestPoint(point.clone());
+    // Compute closest point on the cylinder axis in a separate scratch
+    // so we can measure distance from `point` to it.
+    this._scratchRollClosest.copy(point);
+    this.getClosestPointInto(this._scratchRollClosest);
+    const closestPoint = this._scratchRollClosest;
     let dis = point.distanceTo(closestPoint);
 
     if (dis > Math.PI * this.m_Radius) {
       dis = dis - Math.PI * this.m_Radius;
-      const rotated = this.eulerRotateVector(-dis, this.m_EulerY, 0);
-      point.copy(rotated.add(closestPoint));
+      this.eulerRotateVector(-dis, this.m_EulerY, 0, this._scratchRollEuler);
+      point.copy(this._scratchRollEuler.add(closestPoint));
       point.y += this.m_Radius * 2;
     } else {
       const z = (180 / Math.PI) * (dis / this.m_Radius) - 90;
-      const rotated = this.eulerRotateVector(this.m_Radius, this.m_EulerY, z);
-      point.copy(rotated.add(closestPoint));
+      this.eulerRotateVector(this.m_Radius, this.m_EulerY, z, this._scratchRollEuler);
+      point.copy(this._scratchRollEuler.add(closestPoint));
       point.y += this.m_Radius;
     }
 
     return point;
   }
 
+  /**
+   * Computes offset for `point`. Mutates and returns `point`.
+   * Offset = roll(point with x=0) with z adjusted.
+   * Uses _scratchOffsetRoll to hold a copy for rolling (avoids aliasing
+   * with `point` itself when roll() internally reads and writes).
+   */
   private getOffset(point: THREE.Vector3): THREE.Vector3 {
-    point.x = 0;
-    const offset = this.roll(point.clone());
-    offset.z -= point.z;
-    return offset;
+    const origZ = point.z;
+    // Create a copy with x=0 for rolling
+    this._scratchOffsetRoll.set(0, point.y, point.z);
+    this.roll(this._scratchOffsetRoll);
+    point.copy(this._scratchOffsetRoll);
+    point.z -= origZ;
+    return point;
   }
 
-  private getClosestPoint(point: THREE.Vector3): THREE.Vector3 {
+  /**
+   * Projects `point` onto the cylinder axis, writing the result into `point`.
+   * Returns the mutated `point`.
+   */
+  private getClosestPointInto(point: THREE.Vector3): THREE.Vector3 {
     const dx = point.x - this.m_PositionX;
     const dz = point.z - this.m_PositionZ;
     const dot = dx * this.m_DirectionX + dz * this.m_DirectionZ;

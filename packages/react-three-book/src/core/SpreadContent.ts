@@ -21,6 +21,7 @@ import { TextBlock } from './TextBlock';
 import type { TextBlockOptions } from './TextBlock';
 import type { IPageContent } from './PageContent';
 import type { BookContent } from './BookContent';
+import { syncMaterialsForCanvas, applyTextBlockOptions } from './textContentUtils';
 
 export interface SpreadContentOptions {
   /** Width of a single page in pixels. The spread canvas will be 2x this. */
@@ -29,11 +30,6 @@ export interface SpreadContentOptions {
   pageHeight?: number;
   /** Source canvas or image to draw as the base layer (full spread width). */
   source?: HTMLCanvasElement | HTMLImageElement | null;
-}
-
-type MappedMaterial = THREE.Material & { map: THREE.Texture };
-function hasMaterialMap(mat: THREE.Material): mat is MappedMaterial {
-  return (mat as { map?: unknown }).map instanceof THREE.Texture;
 }
 
 class SpreadHalfContent implements IPageContent {
@@ -127,20 +123,7 @@ export class SpreadContent {
   updateText(index: number, options: Partial<TextBlockOptions>): void {
     const t = this.texts[index];
     if (!t) return;
-    if (options.x          !== undefined) t.x          = options.x;
-    if (options.y          !== undefined) t.y          = options.y;
-    if (options.width      !== undefined) t.width      = options.width;
-    if (options.text       !== undefined) t.text       = options.text;
-    if (options.fontFamily !== undefined) t.fontFamily = options.fontFamily;
-    if (options.fontSize   !== undefined) t.fontSize   = options.fontSize;
-    if (options.fontWeight !== undefined) t.fontWeight = options.fontWeight;
-    if (options.fontStyle  !== undefined) t.fontStyle  = options.fontStyle;
-    if (options.color      !== undefined) t.color      = options.color;
-    if (options.lineHeight !== undefined) t.lineHeight = options.lineHeight;
-    if (options.textAlign  !== undefined) t.textAlign  = options.textAlign;
-    if (options.opacity    !== undefined) t.opacity    = options.opacity;
-    if (options.shadowColor !== undefined) t.shadowColor = options.shadowColor;
-    if (options.shadowBlur  !== undefined) t.shadowBlur  = options.shadowBlur;
+    applyTextBlockOptions(t, options);
   }
 
   // ── Per-frame update ─────────────────────────────────────────────────────
@@ -174,21 +157,14 @@ export class SpreadContent {
    * source image is this spread's canvas.
    */
   syncMaterials(root: THREE.Object3D): void {
-    root.traverse((obj: THREE.Object3D) => {
-      if (!(obj as THREE.Mesh).isMesh) return;
-      const mesh = obj as THREE.Mesh;
-      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      for (const mat of mats) {
-        if (hasMaterialMap(mat) && mat.map.image === this.canvas) {
-          mat.map.needsUpdate = true;
-        }
-      }
-    });
+    syncMaterialsForCanvas(root, this.canvas);
   }
 
   // ── Lifecycle ────────────────────────────────────────────────────────────
 
   dispose(): void {
     this._texture.dispose();
+    this.canvas.width = 0;
+    this.canvas.height = 0;
   }
 }

@@ -36,21 +36,27 @@ export function useBookContent(
   factory: () => BookContent,
   deps: React.DependencyList,
 ): BookContent {
-  const texturesRef = useRef<THREE.Texture[]>([]);
+  const prevTexturesRef = useRef<THREE.Texture[]>([]);
 
   const content = useMemo(() => {
-    for (const t of texturesRef.current) t.dispose();
-    const c = factory();
-    texturesRef.current = collectTextures(c);
-    return c;
+    return factory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
   useEffect(() => {
+    // Dispose the previous content's textures now that the new content is active.
+    const stale = prevTexturesRef.current;
+
+    // Track the current content's textures so they can be disposed next time.
+    prevTexturesRef.current = collectTextures(content);
+
+    for (const t of stale) t.dispose();
+
+    // On unmount, dispose the current content's textures.
     return () => {
-      for (const t of texturesRef.current) t.dispose();
+      for (const t of prevTexturesRef.current) t.dispose();
     };
-  }, []);
+  }, [content]);
 
   return content;
 }

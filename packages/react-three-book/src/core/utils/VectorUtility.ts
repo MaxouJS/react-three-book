@@ -5,29 +5,6 @@ import * as THREE from 'three';
 // ---------------------------------------------------------------------------
 
 /**
- * Port of Unity's Mathf.SmoothStep:
- *   t = Clamp01((t - from) / (to - from));
- *   return t * t * (3 - 2 * t);
- */
-function mathfSmoothStep(from: number, to: number, t: number): number {
-  t = THREE.MathUtils.clamp((t - from) / (to - from), 0, 1);
-  return t * t * (3 - 2 * t);
-}
-
-/**
- * Port of Unity's Mathf.MoveTowards:
- *   Moves `current` towards `target` by at most `maxDelta`.
- */
-function mathfMoveTowards(
-  current: number,
-  target: number,
-  maxDelta: number,
-): number {
-  if (Math.abs(target - current) <= maxDelta) return target;
-  return current + Math.sign(target - current) * maxDelta;
-}
-
-/**
  * Port of Unity's Mathf.SmoothDamp (spring-damper, exact algorithm).
  *
  * Unity signature:
@@ -124,43 +101,6 @@ export function smoothDamp(
   currentVelocity.set(rx.velocity, ry.velocity, rz.velocity);
 
   return new THREE.Vector3(rx.value, ry.value, rz.value);
-}
-
-/**
- * Per-component SmoothStep for Vector3.
- */
-export function smoothStep(
-  from: THREE.Vector3,
-  to: THREE.Vector3,
-  smoothStepT: THREE.Vector3,
-): THREE.Vector3 {
-  return new THREE.Vector3(
-    mathfSmoothStep(from.x, to.x, smoothStepT.x),
-    mathfSmoothStep(from.y, to.y, smoothStepT.y),
-    mathfSmoothStep(from.z, to.z, smoothStepT.z),
-  );
-}
-
-/**
- * Per-component MoveTowards for Vector3.
- */
-export function moveTowards(
-  current: THREE.Vector3,
-  target: THREE.Vector3,
-  maxDistanceDelta: THREE.Vector3,
-): THREE.Vector3 {
-  return new THREE.Vector3(
-    mathfMoveTowards(current.x, target.x, maxDistanceDelta.x),
-    mathfMoveTowards(current.y, target.y, maxDistanceDelta.y),
-    mathfMoveTowards(current.z, target.z, maxDistanceDelta.z),
-  );
-}
-
-/**
- * Returns a perpendicular vector in the XZ plane (swaps x and z, negates z).
- */
-export function getPerpendicularXZ2(vector: THREE.Vector3): THREE.Vector3 {
-  return new THREE.Vector3(-vector.z, vector.y, vector.x);
 }
 
 /**

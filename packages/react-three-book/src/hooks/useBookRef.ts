@@ -10,7 +10,7 @@
  * the cheapest path — no useEffect for option sync, no diffing, no prev-refs.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Book as ThreeBook } from '../core/Book';
 import type { BookOptions } from '../core/Book';
@@ -39,6 +39,13 @@ export function useBookRef(
   const bookRef = useRef<ThreeBook | null>(null);
   const [ready, setReady] = useState(false);
 
+  const onBuiltRef = useRef(onBuilt);
+  const onErrorRef = useRef(onError);
+  useLayoutEffect(() => {
+    onBuiltRef.current = onBuilt;
+    onErrorRef.current = onError;
+  });
+
   useEffect(() => {
     const book = new ThreeBook(options);
     bookRef.current = book;
@@ -46,9 +53,9 @@ export function useBookRef(
     try {
       book.init();
       setReady(true);
-      onBuilt?.(book);
+      onBuiltRef.current?.(book);
     } catch (err) {
-      onError?.(err as Error);
+      onErrorRef.current?.(err as Error);
     }
 
     return () => {

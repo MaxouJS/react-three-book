@@ -3,6 +3,7 @@ import { PaperSeam, PaperBorder } from './PaperStructs';
 import { PaperNode } from './PaperNode';
 import { PaperUVMargin } from './PaperUVMargin';
 import { BookDirection } from './BookDirection';
+import { inverseLerp } from './mathUtils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PaperMeshUtility  (ported from Book.cs lines ~2511-2878)
@@ -10,16 +11,6 @@ import { BookDirection } from './BookDirection';
 // Static helper class with mesh generation methods: seam interpolation,
 // face generation, border geometry, UV texcoord generation, wireframe debug.
 // ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Unity's `Mathf.InverseLerp(a, b, value)` — returns `(value - a) / (b - a)`
- * clamped to [0, 1].
- */
-function inverseLerp(a: number, b: number, value: number): number {
-  if (a === b) return 0;
-  const t = (value - a) / (b - a);
-  return Math.max(0, Math.min(1, t));
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Seam helpers
@@ -68,7 +59,7 @@ export function updateXSeams(
   useSlerp: boolean,
 ): void {
   for (const seam of seams) {
-    if (!seam.active) return;
+    if (!seam.active) continue;
 
     for (let z = 0; z < nZ; z++) {
       const iPrev = seam.prevIndex;
@@ -101,7 +92,7 @@ export function updateZSeams(
   useSlerp: boolean,
 ): void {
   for (const seam of seams) {
-    if (!seam.active) return;
+    if (!seam.active) continue;
 
     for (let x = 0; x < nX; x++) {
       const iPrev = seam.prevIndex;
@@ -316,60 +307,6 @@ export function updateBorders(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DebugDrawBorders  (debug / editor only)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Debug draws border edges in world space. In Three.js, callers can use
- * THREE.LineSegments or a helper to visualise these.
- *
- * Returns pairs of [start, end] line segment positions in world space.
- *
- * Ported from `PaperMeshUtility.DebugDrawBorders` (lines ~2707-2747).
- */
-export function debugDrawBorders(
-  borders: PaperBorder[],
-  vertices: THREE.Vector3[],
-  nX: number,
-  _nZ: number,
-  matrix: THREE.Matrix4,
-): Array<[THREE.Vector3, THREE.Vector3]> {
-  const lines: Array<[THREE.Vector3, THREE.Vector3]> = [];
-  for (const border of borders) {
-    for (let i = border.startX; i < border.endX; i++) {
-      const j = i + border.startZ * nX;
-      const a = vertices[j].clone().applyMatrix4(matrix);
-      const b = vertices[j + 1].clone().applyMatrix4(matrix);
-      lines.push([a, b]);
-    }
-
-    for (let i = border.startX; i < border.endX; i++) {
-      const j = i + border.endZ * nX;
-      const a = vertices[j].clone().applyMatrix4(matrix);
-      const b = vertices[j + 1].clone().applyMatrix4(matrix);
-      lines.push([a, b]);
-    }
-
-    for (let i = border.startZ; i < border.endZ; i++) {
-      const j = i * nX + border.startX;
-      const j2 = (i + 1) * nX + border.startX;
-      const a = vertices[j].clone().applyMatrix4(matrix);
-      const b = vertices[j2].clone().applyMatrix4(matrix);
-      lines.push([a, b]);
-    }
-
-    for (let i = border.startZ; i < border.endZ; i++) {
-      const j = i * nX + border.endX;
-      const j2 = (i + 1) * nX + border.endX;
-      const a = vertices[j].clone().applyMatrix4(matrix);
-      const b = vertices[j2].clone().applyMatrix4(matrix);
-      lines.push([a, b]);
-    }
-  }
-  return lines;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Face index helpers (private)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -522,42 +459,3 @@ function addBackFace(triangles: number[], a: number, b: number, c: number, d: nu
   triangles.push(c);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DrawWireframe (debug / editor only)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Returns wireframe quad data for debug visualisation.
- * In Unity this used Handles; in Three.js, callers can use THREE.LineSegments.
- *
- * Ported from `PaperMeshUtility.DrawWireframe` (lines ~2838-2877).
- */
-export function drawWireframe(
-  vertices: THREE.Vector3[],
-  nX: number,
-  nZ: number,
-  matrix: THREE.Matrix4,
-): Array<[THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3]> {
-  const quads: Array<[THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3]> = [];
-
-  for (let z = 0; z < nZ - 1; z++) {
-    for (let x = 0; x < nX - 1; x++) {
-      let a = vertices[z * nX + x].clone();
-      let b = vertices[z * nX + x + 1].clone();
-      let c = vertices[(z + 1) * nX + x].clone();
-      let d = vertices[(z + 1) * nX + x + 1].clone();
-
-      //c d
-      //a b
-
-      a.applyMatrix4(matrix);
-      b.applyMatrix4(matrix);
-      c.applyMatrix4(matrix);
-      d.applyMatrix4(matrix);
-
-      quads.push([a, b, c, d]);
-    }
-  }
-
-  return quads;
-}

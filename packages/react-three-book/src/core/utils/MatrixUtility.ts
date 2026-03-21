@@ -16,5 +16,5 @@ export function transformRay(
 ): THREE.Ray {
   const a = ray.origin.clone().applyMatrix4(matrix);
   const b = ray.origin.clone().add(ray.direction).applyMatrix4(matrix);
-  return new THREE.Ray(a, b.sub(a));
+  return new THREE.Ray(a, b.sub(a).normalize());
 }

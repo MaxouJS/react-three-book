@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { PaperMeshData } from './PaperMeshData';
 import type { PaperPattern } from './PaperPattern';
+import type { PropertyBlock, IPaperRenderer } from './types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MeshFactory (Book.cs lines 1798-1838)
@@ -61,16 +62,10 @@ export class MeshFactory {
 
 export class RendererFactory {
   private m_Root: THREE.Object3D;
-  private m_CreateMeshCollider: boolean = false;
-
   private m_UsedRenderers: BookRenderer[] = [];
   private m_FreeRenderers: BookRenderer[] = [];
   private m_Renderers: Set<BookRenderer> = new Set();
   private m_Ids: number[] = [];
-
-  set createColliders(value: boolean) {
-    this.m_CreateMeshCollider = value;
-  }
 
   get ids(): number[] {
     return [...this.m_Ids];
@@ -84,10 +79,9 @@ export class RendererFactory {
     let renderer: BookRenderer;
     if (this.m_FreeRenderers.length > 0) {
       renderer = this.m_FreeRenderers.pop()!;
-      renderer.createCollider = this.m_CreateMeshCollider;
       renderer.reset(name);
     } else {
-      renderer = new BookRenderer(this.m_Root, name, this.m_CreateMeshCollider);
+      renderer = new BookRenderer(this.m_Root, name);
       this.m_Renderers.add(renderer);
     }
     this.m_UsedRenderers.push(renderer);
@@ -150,23 +144,15 @@ interface ManagedTextureState {
   stKey: string;
 }
 
-export class BookRenderer {
+export class BookRenderer implements IPaperRenderer {
   private m_Object3D: THREE.Object3D;
   private m_Mesh: THREE.Mesh;
   private m_Visibility: boolean = true;
-  private m_CreateCollider: boolean;
   private m_Id: number;
 
   // Per-material-index property blocks (uniforms)
-  private m_PropertyBlocks: Map<number, Record<string, unknown>> = new Map();
+  private m_PropertyBlocks: Map<number, PropertyBlock> = new Map();
   private m_MaterialTextures: Map<number, ManagedTextureState> = new Map();
-
-  get createCollider(): boolean {
-    return this.m_CreateCollider;
-  }
-  set createCollider(value: boolean) {
-    this.m_CreateCollider = value;
-  }
 
   get bounds(): THREE.Box3 {
     const box = new THREE.Box3();
@@ -192,8 +178,16 @@ export class BookRenderer {
     return this.m_Visibility;
   }
 
+  get castShadows(): boolean {
+    return this.m_Mesh.castShadow;
+  }
+
   set castShadows(value: boolean) {
     this.m_Mesh.castShadow = value;
+  }
+
+  get mesh(): THREE.BufferGeometry | null {
+    return this.m_Mesh.geometry ?? null;
   }
 
   set mesh(value: THREE.BufferGeometry | null) {
@@ -206,7 +200,7 @@ export class BookRenderer {
     return this.m_Mesh;
   }
 
-  constructor(root: THREE.Object3D, name: string, createCollider: boolean) {
+  constructor(root: THREE.Object3D, name: string) {
     this.m_Id = nextRendererId++;
     this.m_Object3D = new THREE.Object3D();
     this.m_Object3D.name = name;
@@ -217,8 +211,6 @@ export class BookRenderer {
     );
     this.m_Object3D.add(this.m_Mesh);
     root.add(this.m_Object3D);
-
-    this.m_CreateCollider = createCollider;
   }
 
   setMaterials(materials: THREE.Material | THREE.Material[]): void {
@@ -242,39 +234,41 @@ export class BookRenderer {
     this.m_PropertyBlocks.clear();
   }
 
-  setPropertyBlock(properties: Record<string, unknown>, materialIndex: number): void {
+  setPropertyBlock(properties: PropertyBlock, materialIndex: number): void {
     this.m_PropertyBlocks.set(materialIndex, properties);
     // Apply texture/color from property block to the appropriate material
     const mat = this.getMaterial(materialIndex);
     if (!mat) return;
 
     if (this.isMapCapable(mat)) {
-      if (properties['map'] instanceof THREE.Texture) {
+      if (properties.map instanceof THREE.Texture) {
         this.applyTextureProperty(
           mat,
           materialIndex,
-          properties['map'] as THREE.Texture,
-          properties['textureST'] as THREE.Vector4 | undefined,
+          properties.map,
+          properties.textureST,
         );
       } else {
         this.clearMaterialTexture(materialIndex, mat);
       }
     }
 
-    if (this.isColorCapable(mat) && properties['color'] instanceof THREE.Color) {
-      mat.color.copy(properties['color']);
+    if (this.isColorCapable(mat)) {
+      mat.color.copy(properties.color);
     }
   }
 
   reset(name: string): void {
     this.m_Object3D.name = name;
     this.setVisibility(true);
+    this.m_Mesh.geometry.dispose();
     this.m_Mesh.geometry = new THREE.BufferGeometry();
     this.setMaterials([]);
   }
 
   clear(): void {
     this.m_Object3D.name = '';
+    this.m_Mesh.geometry.dispose();
     this.m_Mesh.geometry = new THREE.BufferGeometry();
     this.m_PropertyBlocks.clear();
     this.setVisibility(false);
@@ -296,11 +290,6 @@ export class BookRenderer {
     if (this.m_Visibility === visibility) return;
     this.m_Visibility = visibility;
     this.m_Object3D.visible = visibility;
-  }
-
-  updateCollider(): void {
-    // In Three.js, raycasting works directly on mesh geometry
-    // No explicit collider update needed
   }
 
   private getMaterial(materialIndex: number): THREE.Material | null {

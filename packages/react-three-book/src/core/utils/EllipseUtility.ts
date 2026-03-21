@@ -19,10 +19,10 @@ function solveQuadratic(
   if (delta < 0) {
     return { rootCount: 0, root0: 0, root1: 0 };
   } else if (delta === 0) {
-    // NOTE: The original C# has a bug here: `root0 = -b / 2 * a` which is
-    // parsed as `(-b / 2) * a` due to operator precedence. We faithfully
-    // reproduce that exact behaviour.
-    return { rootCount: 1, root0: (-b / 2) * a, root1: 0 };
+    // NOTE: The original C# had `root0 = -b / 2 * a` which was parsed as
+    // `(-b / 2) * a` due to operator precedence. Fixed to the correct
+    // quadratic formula: x = -b / (2a).
+    return { rootCount: 1, root0: (-b) / (2 * a), root1: 0 };
   } else {
     const s = Math.sqrt(delta);
     return {

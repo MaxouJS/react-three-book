@@ -27,6 +27,10 @@ export class BookContent {
   private m_Pages: (THREE.Texture | IPageContent | null)[] = [null, null, null, null, null, null, null, null];
   private m_Book: Book | null = null;
 
+  // Cached content arrays — invalidated when covers/pages change
+  private _cachedCovers: IPageContent[] | null = null;
+  private _cachedPages: IPageContent[] | null = null;
+
   private get coverCount4(): number {
     return this.nextMultipleOf4(this.m_Covers.length);
   }
@@ -43,8 +47,18 @@ export class BookContent {
     return this.m_Covers;
   }
 
+  set covers(value: (THREE.Texture | IPageContent | null)[]) {
+    this.m_Covers = value;
+    this._cachedCovers = null;
+  }
+
   get pages(): (THREE.Texture | IPageContent | null)[] {
     return this.m_Pages;
+  }
+
+  set pages(value: (THREE.Texture | IPageContent | null)[]) {
+    this.m_Pages = value;
+    this._cachedPages = null;
   }
 
   get isEmpty(): boolean {
@@ -60,11 +74,17 @@ export class BookContent {
   }
 
   get coverContents(): IPageContent[] {
-    return this.getContents(this.m_Covers, false);
+    if (this._cachedCovers === null) {
+      this._cachedCovers = this.getContents(this.m_Covers, false);
+    }
+    return this._cachedCovers;
   }
 
   get pageContents(): IPageContent[] {
-    return this.getContents(this.m_Pages, false);
+    if (this._cachedPages === null) {
+      this._cachedPages = this.getContents(this.m_Pages, false);
+    }
+    return this._cachedPages;
   }
 
   private getContents(
@@ -101,6 +121,9 @@ export class BookContent {
 
   init(book: Book): void {
     this.m_Book = book;
+    // Invalidate caches since init may be called with new content
+    this._cachedCovers = null;
+    this._cachedPages = null;
 
     for (const cover of this.coverContents) {
       cover.init(this);
