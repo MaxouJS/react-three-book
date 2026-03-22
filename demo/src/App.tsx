@@ -69,6 +69,7 @@ export default function App() {
   const [coverSlots, setCoverSlots] = useState<ImageSlot[]>(() => Array.from({ length: 4 }, () => ({ ...EMPTY_SLOT })));
   const [pageSlots, setPageSlots] = useState<ImageSlot[]>(() => Array.from({ length: INITIAL_PAGE_SLOTS }, () => ({ ...EMPTY_SLOT })));
   const [pageTextBlocks, setPageTextBlocks] = useState<PageTextBlock[][]>(() => Array.from({ length: INITIAL_PAGE_SLOTS }, () => []));
+  const [coverTextBlocks, setCoverTextBlocks] = useState<PageTextBlock[][]>(() => [[], [], [], []]);
   const [spreadPages, setSpreadPages] = useState<Set<number>>(() => new Set());
   const [status, setStatus] = useState('Building\u2026');
   const [sceneKey, setSceneKey] = useState(0);
@@ -117,6 +118,10 @@ export default function App() {
     setPageTextBlocks(blocks);
   }, []);
 
+  const onCoverTextBlocksChange = useCallback((blocks: PageTextBlock[][]) => {
+    setCoverTextBlocks(blocks);
+  }, []);
+
   const onSpreadPagesChange = useCallback((next: Set<number>) => {
     setSpreadPages(next);
   }, []);
@@ -144,7 +149,7 @@ export default function App() {
   return (
     <>
       <Canvas shadows camera={{ position: [0, 2, 5], fov: 45 }} style={{ position: 'fixed', inset: 0 }} gl={{ antialias: true }}>
-        <BookScene key={sceneKey} params={params} coverSlots={coverSlots} pageSlots={pageSlots} pageTextBlocks={pageTextBlocks} spreadPages={spreadPages} bookRef={bookRef} onBuilt={onBuilt} onError={onError} />
+        <BookScene key={sceneKey} params={params} coverSlots={coverSlots} pageSlots={pageSlots} pageTextBlocks={pageTextBlocks} coverTextBlocks={coverTextBlocks} spreadPages={spreadPages} bookRef={bookRef} onBuilt={onBuilt} onError={onError} />
       </Canvas>
 
       {panelOpen ? (
@@ -189,7 +194,7 @@ export default function App() {
             <RightPanel params={params} coverSlots={coverSlots} pageSlots={pageSlots} spreadPages={spreadPages} onCoverSlotChange={onCoverSlotChange} onPageSlotChange={onPageSlotChange} onSpreadPagesChange={onSpreadPagesChange} />
           </div>
           <div style={{ display: activeTab === 'editor' ? 'block' : 'none' }}>
-            <PageEditor params={params} pageSlots={pageSlots} coverSlots={coverSlots} pageTextBlocks={pageTextBlocks} spreadPages={spreadPages} onPageTextBlocksChange={onPageTextBlocksChange} onPageSlotChange={onPageSlotChange} onCoverSlotChange={onCoverSlotChange} />
+            <PageEditor params={params} pageSlots={pageSlots} coverSlots={coverSlots} pageTextBlocks={pageTextBlocks} coverTextBlocks={coverTextBlocks} spreadPages={spreadPages} onPageTextBlocksChange={onPageTextBlocksChange} onCoverTextBlocksChange={onCoverTextBlocksChange} onPageSlotChange={onPageSlotChange} onCoverSlotChange={onCoverSlotChange} />
           </div>
         </div>
       ) : (

@@ -23,6 +23,7 @@ interface BookSceneProps {
   coverSlots: ImageSlot[];
   pageSlots: ImageSlot[];
   pageTextBlocks: PageTextBlock[][];
+  coverTextBlocks: PageTextBlock[][];
   spreadPages: Set<number>;
   bookRef: React.MutableRefObject<ThreeBook | null>;
   onBuilt: (book: ThreeBook) => void;
@@ -30,7 +31,7 @@ interface BookSceneProps {
 }
 
 export default function BookScene({
-  params, coverSlots, pageSlots, pageTextBlocks, spreadPages,
+  params, coverSlots, pageSlots, pageTextBlocks, coverTextBlocks, spreadPages,
   bookRef, onBuilt, onError,
 }: BookSceneProps) {
   const orbitRef = useRef<any>(null);
@@ -150,16 +151,36 @@ export default function BookScene({
       >
         <BookInteraction enabled={params.interactive} orbitControlsRef={orbitRef} />
 
-        {coverSlots.map((s, i) => (
-          <Cover
-            key={`cover-${i}`}
-            image={s.useImage ? s.image ?? undefined : undefined}
-            color={params.coverColor}
-            fitMode={s.fitMode}
-            fullBleed={s.fullBleed}
-            imageRect={s.useImage ? s.imageRect : undefined}
-          />
-        ))}
+        {coverSlots.map((s, i) => {
+          const blocks = coverTextBlocks[i] ?? [];
+          return (
+            <Cover
+              key={`cover-${i}`}
+              image={s.useImage ? s.image ?? undefined : undefined}
+              color={params.coverColor}
+              fitMode={s.fitMode}
+              fullBleed={s.fullBleed}
+              imageRect={s.useImage ? s.imageRect : undefined}
+            >
+              {blocks.filter((b) => b.text).map((b, bi) => (
+                <Text
+                  key={bi}
+                  x={b.x} y={b.y} width={b.width}
+                  fontSize={b.fontSize}
+                  fontFamily={b.fontFamily || params.bookFont}
+                  fontWeight={b.fontWeight}
+                  fontStyle={b.fontStyle}
+                  color={b.color}
+                  textAlign={b.textAlign}
+                  shadowColor="rgba(255,255,255,0.6)"
+                  shadowBlur={3}
+                >
+                  {b.text}
+                </Text>
+              ))}
+            </Cover>
+          );
+        })}
 
         {pageElements}
       </Book>

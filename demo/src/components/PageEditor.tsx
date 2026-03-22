@@ -27,8 +27,10 @@ interface PageEditorProps {
   pageSlots: ImageSlot[];
   coverSlots: ImageSlot[];
   pageTextBlocks: PageTextBlock[][];
+  coverTextBlocks: PageTextBlock[][];
   spreadPages: Set<number>;
   onPageTextBlocksChange: (blocks: PageTextBlock[][]) => void;
+  onCoverTextBlocksChange: (blocks: PageTextBlock[][]) => void;
   onPageSlotChange: (i: number, updater: (s: ImageSlot) => ImageSlot) => void;
   onCoverSlotChange: (i: number, updater: (s: ImageSlot) => ImageSlot) => void;
 }
@@ -66,8 +68,8 @@ _measureCanvas.height = 1;
 const measureCtx = _measureCanvas.getContext('2d')!;
 
 export default function PageEditor({
-  params, pageSlots, coverSlots, pageTextBlocks, spreadPages,
-  onPageTextBlocksChange, onPageSlotChange, onCoverSlotChange,
+  params, pageSlots, coverSlots, pageTextBlocks, coverTextBlocks, spreadPages,
+  onPageTextBlocksChange, onCoverTextBlocksChange, onPageSlotChange, onCoverSlotChange,
 }: PageEditorProps) {
   const [currentSurface, setCurrentSurface] = useState(0);
   const [selectedIdx, setSelectedIdx] = useState(-1);
@@ -93,8 +95,8 @@ export default function PageEditor({
   const effectivePageIdx = isRightOfSpread ? pageIdx - 1 : pageIdx;
   const isSpreadMode = isSpread || isRightOfSpread;
 
-  // Text blocks — empty for covers
-  const blocks = isCover ? [] : (pageTextBlocks[effectivePageIdx] ?? []);
+  // Text blocks for current surface
+  const blocks = isCover ? (coverTextBlocks[coverIdx] ?? []) : (pageTextBlocks[effectivePageIdx] ?? []);
   const selected = selectedIdx >= 0 && selectedIdx < blocks.length ? blocks[selectedIdx] : null;
 
   // Dimensions depend on cover vs page
@@ -141,20 +143,34 @@ export default function PageEditor({
   }, [params.bookFont]);
 
   // Immutable update helpers
-  const updateBlocks = useCallback((pIdx: number, updater: (b: PageTextBlock[]) => PageTextBlock[]) => {
+  const updatePageBlocks = useCallback((pIdx: number, updater: (b: PageTextBlock[]) => PageTextBlock[]) => {
     const next = [...pageTextBlocks];
     next[pIdx] = updater([...(next[pIdx] ?? [])]);
     onPageTextBlocksChange(next);
   }, [pageTextBlocks, onPageTextBlocksChange]);
 
+  const updateCoverBlocks = useCallback((cIdx: number, updater: (b: PageTextBlock[]) => PageTextBlock[]) => {
+    const next = [...coverTextBlocks];
+    next[cIdx] = updater([...(next[cIdx] ?? [])]);
+    onCoverTextBlocksChange(next);
+  }, [coverTextBlocks, onCoverTextBlocksChange]);
+
+  const updateBlocks = useCallback((updater: (b: PageTextBlock[]) => PageTextBlock[]) => {
+    if (isCover) {
+      updateCoverBlocks(coverIdx, updater);
+    } else {
+      updatePageBlocks(effectivePageIdx, updater);
+    }
+  }, [isCover, coverIdx, effectivePageIdx, updatePageBlocks, updateCoverBlocks]);
+
   const updateSelected = useCallback((patch: Partial<PageTextBlock>) => {
-    if (selectedIdx < 0 || isCover) return;
-    updateBlocks(effectivePageIdx, (arr) => {
+    if (selectedIdx < 0) return;
+    updateBlocks((arr) => {
       const copy = [...arr];
       copy[selectedIdx] = { ...copy[selectedIdx], ...patch };
       return copy;
     });
-  }, [effectivePageIdx, selectedIdx, updateBlocks, isCover]);
+  }, [selectedIdx, updateBlocks]);
 
   // rAF render loop — draws surface preview with text blocks + selection outlines
 
@@ -205,23 +221,21 @@ export default function PageEditor({
         ctx.restore();
       }
 
-      // Draw text blocks onto preview (pages only)
-      if (!isCover) {
-        ctx.save();
-        ctx.scale(scale, scale);
-        for (const b of blocks) {
-          if (!b.text) continue;
-          const tb = new TextBlock({
-            text: b.text, x: b.x, y: b.y, width: b.width,
-            fontFamily: b.fontFamily || params.bookFont,
-            fontSize: b.fontSize, fontWeight: b.fontWeight, fontStyle: b.fontStyle,
-            color: b.color, textAlign: b.textAlign, lineHeight: 1.4,
-            shadowColor: 'rgba(255,255,255,0.6)', shadowBlur: 3,
-          });
-          tb.draw(ctx);
-        }
-        ctx.restore();
+      // Draw text blocks onto preview
+      ctx.save();
+      ctx.scale(scale, scale);
+      for (const b of blocks) {
+        if (!b.text) continue;
+        const tb = new TextBlock({
+          text: b.text, x: b.x, y: b.y, width: b.width,
+          fontFamily: b.fontFamily || params.bookFont,
+          fontSize: b.fontSize, fontWeight: b.fontWeight, fontStyle: b.fontStyle,
+          color: b.color, textAlign: b.textAlign, lineHeight: 1.4,
+          shadowColor: 'rgba(255,255,255,0.6)', shadowBlur: 3,
+        });
+        tb.draw(ctx);
       }
+      ctx.restore();
 
       // Draw spread fold line
       if (isSpreadMode) {
@@ -236,8 +250,8 @@ export default function PageEditor({
         ctx.restore();
       }
 
-      // Draw selection outlines (pages only)
-      if (!isCover) {
+      // Draw selection outlines
+      {
         for (let i = 0; i < blocks.length; i++) {
           const b = blocks[i];
           const bw = b.width > 0 ? b.width : 200;
@@ -290,18 +304,16 @@ export default function PageEditor({
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     const cv = toCanvas(e);
 
-    // Text block hit test (pages only)
-    if (!isCover) {
-      const hit = hitTest(cv.x, cv.y);
-      if (hit >= 0) {
-        setSelectedIdx(hit);
-        const b = blocks[hit];
-        dragRef.current = { type: 'text', startX: cv.x, startY: cv.y, originX: b.x, originY: b.y };
-        canvasRef.current!.style.cursor = 'grabbing';
-        canvasRef.current?.setPointerCapture(e.pointerId);
-        e.stopPropagation();
-        return;
-      }
+    // Text block hit test
+    const hit = hitTest(cv.x, cv.y);
+    if (hit >= 0) {
+      setSelectedIdx(hit);
+      const b = blocks[hit];
+      dragRef.current = { type: 'text', startX: cv.x, startY: cv.y, originX: b.x, originY: b.y };
+      canvasRef.current!.style.cursor = 'grabbing';
+      canvasRef.current?.setPointerCapture(e.pointerId);
+      e.stopPropagation();
+      return;
     }
 
     // No text hit — deselect any selected text block
@@ -317,7 +329,7 @@ export default function PageEditor({
     }
 
     e.stopPropagation();
-  }, [toCanvas, hitTest, blocks, currentSlot, isCover]);
+  }, [toCanvas, hitTest, blocks, currentSlot]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     const drag = dragRef.current;
@@ -326,37 +338,32 @@ export default function PageEditor({
       const dx = cv.x - drag.startX;
       const dy = cv.y - drag.startY;
       if (drag.type === 'image') {
-        // Panning image — update imageRect x/y directly
         const newX = drag.originX + dx;
         const newY = drag.originY + dy;
         onCurrentSlotChange((s) => {
           if (!s.imageRect) return s;
           return { ...s, imageRect: { ...s.imageRect, x: newX, y: newY } };
         });
-      } else if (drag.type === 'text' && selectedIdx >= 0 && !isCover) {
+      } else if (drag.type === 'text' && selectedIdx >= 0) {
         updateSelected({
           x: Math.max(-canvasW + 40, Math.min(canvasW - 40, drag.originX + dx)),
           y: Math.max(-canvasH + 40, Math.min(canvasH - 40, drag.originY + dy)),
         });
       }
     } else {
-      // Hover feedback — no drag in progress
       const cv = toCanvas(e);
-      if (!isCover) {
-        const hit = hitTest(cv.x, cv.y);
-        if (hit >= 0) {
-          canvasRef.current!.style.cursor = 'grab';
-          return;
-        }
+      const hit = hitTest(cv.x, cv.y);
+      if (hit >= 0) {
+        canvasRef.current!.style.cursor = 'grab';
+        return;
       }
-      // Empty space — show move cursor if image is pannable
       if (currentSlot?.useImage && currentSlot.image && currentSlot.imageRect) {
         canvasRef.current!.style.cursor = 'move';
         return;
       }
       canvasRef.current!.style.cursor = 'default';
     }
-  }, [toCanvas, selectedIdx, canvasW, canvasH, updateSelected, onCurrentSlotChange, isCover, hitTest, currentSlot]);
+  }, [toCanvas, selectedIdx, canvasW, canvasH, updateSelected, onCurrentSlotChange, hitTest, currentSlot]);
 
   const onPointerUp = useCallback(() => {
     dragRef.current = null;
@@ -397,21 +404,21 @@ export default function PageEditor({
   return (
     <>
       {/* Surface selector */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <button style={BTN} onClick={() => { if (surface > 0) setCurrentSurface(surface - 1); }}>{'\u25C0'}</button>
-        <span style={{ fontWeight: 600, fontSize: 12, minWidth: 160, textAlign: 'center' }}>
+        <span style={{ flex: 1, fontWeight: 600, fontSize: 12, textAlign: 'center' }}>
           {surfaceLabel} <span style={{ opacity: 0.5, fontWeight: 400 }}>({surface + 1}/{totalSurfaces})</span>
         </span>
         <button style={BTN} onClick={() => { if (surface < totalSurfaces - 1) setCurrentSurface(surface + 1); }}>{'\u25B6'}</button>
       </div>
 
-      {/* Toolbar */}
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8, width: '100%' }}>
+      {/* Toolbar row 1: font family + size */}
+      <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 4 }}>
         <select
           value={selected?.fontFamily ?? ''}
-          style={{ ...MINI_SELECT, maxWidth: 120 }}
+          style={{ ...MINI_SELECT, flex: 1, minWidth: 0 }}
           onChange={(e) => updateSelected({ fontFamily: e.target.value })}
-          disabled={!selected || isCover}
+          disabled={!selected}
         >
           <option value="">Book default</option>
           {FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
@@ -422,90 +429,101 @@ export default function PageEditor({
           value={selected?.fontSize ?? 22}
           style={{ ...MINI_SELECT, width: 52 }}
           onChange={(e) => updateSelected({ fontSize: parseInt(e.target.value, 10) || 22 })}
-          disabled={!selected || isCover}
+          disabled={!selected}
         />
+      </div>
 
+      {/* Toolbar row 2: style + alignment */}
+      <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 8 }}>
         <button
-          style={{ ...BTN, fontWeight: 'bold', minWidth: 28, background: selected?.fontWeight === 'bold' ? 'rgba(137,216,176,0.3)' : undefined }}
+          style={{ ...BTN, fontWeight: 'bold', width: 32, padding: '4px 0', background: selected?.fontWeight === 'bold' ? 'rgba(137,216,176,0.3)' : BTN.background }}
           onClick={() => updateSelected({ fontWeight: selected?.fontWeight === 'bold' ? 'normal' : 'bold' })}
-          disabled={!selected || isCover}
+          disabled={!selected}
         >B</button>
 
         <button
-          style={{ ...BTN, fontStyle: 'italic', minWidth: 28, background: selected?.fontStyle === 'italic' ? 'rgba(137,216,176,0.3)' : undefined }}
+          style={{ ...BTN, fontStyle: 'italic', width: 32, padding: '4px 0', background: selected?.fontStyle === 'italic' ? 'rgba(137,216,176,0.3)' : BTN.background }}
           onClick={() => updateSelected({ fontStyle: selected?.fontStyle === 'italic' ? 'normal' : 'italic' })}
-          disabled={!selected || isCover}
+          disabled={!selected}
         >I</button>
 
-        <input
-          type="color" value={selected?.color ?? '#1a1a1a'}
-          style={{ width: 28, height: 24, border: 'none', background: 'none', cursor: 'pointer' }}
-          onChange={(e) => updateSelected({ color: e.target.value })}
-          disabled={!selected || isCover}
-        />
+        <div style={{ width: 32, height: 28, borderRadius: 6, border: '1px solid rgba(236,242,255,0.22)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.08)' }}>
+          <input
+            type="color" value={selected?.color ?? '#1a1a1a'}
+            style={{ width: 40, height: 40, border: 'none', background: 'none', cursor: 'pointer', margin: -6 }}
+            onChange={(e) => updateSelected({ color: e.target.value })}
+            disabled={!selected}
+          />
+        </div>
+
+        <div style={{ width: 1, height: 20, background: 'rgba(236,242,255,0.12)', margin: '0 2px' }} />
 
         {(['left', 'center', 'right'] as const).map((a) => (
           <button
             key={a}
-            style={{ ...BTN, minWidth: 28, background: selected?.textAlign === a ? 'rgba(137,216,176,0.3)' : undefined }}
+            style={{ ...BTN, width: 32, padding: '4px 0', background: selected?.textAlign === a ? 'rgba(137,216,176,0.3)' : BTN.background }}
             onClick={() => updateSelected({ textAlign: a })}
-            disabled={!selected || isCover}
+            disabled={!selected}
             title={a}
           >
             {a === 'left' ? '\u2190' : a === 'center' ? '\u2194' : '\u2192'}
           </button>
         ))}
+
+        <div style={{ flex: 1 }} />
+
+        <button
+          style={{ ...BTN, padding: '4px 8px', fontSize: 11, opacity: selectedIdx < 0 ? 0.35 : 1 }}
+          disabled={selectedIdx < 0}
+          onClick={() => {
+            updateBlocks((arr) => arr.filter((_, j) => j !== selectedIdx));
+            setSelectedIdx(-1);
+          }}
+        >{'\u2715'}</button>
+      </div>
+
+      {/* Preview canvas — centered */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+        <canvas
+          ref={canvasRef}
+          width={displayW}
+          height={displayH}
+          style={{
+            display: 'block', borderRadius: 8, cursor: 'default',
+            border: '1px solid rgba(236,242,255,0.12)',
+            maxWidth: '100%',
+          }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+        />
       </div>
 
       {/* Action row */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 8, width: '100%' }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
         <button
           style={{ ...BTN, flex: 1 }}
-          disabled={isCover}
           onClick={() => {
-            if (isCover) return;
-            const spreadW = isSpreadMode ? params.pageWidth * 2 : params.pageWidth;
-            updateBlocks(effectivePageIdx, (arr) => [...arr, createDefaultTextBlock(spreadW, params.pageHeight)]);
+            const w = isCover ? params.coverWidth : (isSpreadMode ? params.pageWidth * 2 : params.pageWidth);
+            const h = isCover ? params.coverHeight : params.pageHeight;
+            updateBlocks((arr) => [...arr, createDefaultTextBlock(w, h)]);
             setSelectedIdx(blocks.length);
           }}
         >+ Add Text</button>
-        <button
-          style={{ ...BTN, flex: 1 }}
-          disabled={selectedIdx < 0 || isCover}
-          onClick={() => {
-            if (isCover) return;
-            updateBlocks(effectivePageIdx, (arr) => arr.filter((_, j) => j !== selectedIdx));
-            setSelectedIdx(-1);
-          }}
-        >{'\u2715'} Remove</button>
       </div>
-
-      {/* Preview canvas */}
-      <canvas
-        ref={canvasRef}
-        width={displayW}
-        height={displayH}
-        style={{
-          display: 'block', borderRadius: 8, cursor: 'default',
-          border: '1px solid rgba(236,242,255,0.12)', marginBottom: 8,
-          maxWidth: '100%',
-        }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-      />
 
       {/* Textarea */}
       <textarea
         rows={3}
-        placeholder={isCover ? 'Text editing not available on covers' : 'Select a text block, then type here\u2026'}
+        placeholder="Select a text block, then type here\u2026"
         value={selected?.text ?? ''}
-        disabled={!selected || isCover}
+        disabled={!selected}
         style={{
           width: '100%', boxSizing: 'border-box', padding: '6px 8px',
           borderRadius: 6, border: '1px solid rgba(236,242,255,0.18)',
           background: 'rgba(255,255,255,0.06)', color: '#eef4ff',
           fontFamily: 'inherit', fontSize: 12, resize: 'vertical',
+          opacity: !selected ? 0.4 : 1,
         }}
         onChange={(e) => updateSelected({ text: e.target.value })}
       />
