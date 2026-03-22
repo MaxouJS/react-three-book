@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import type { Book as ThreeBook } from '../core/Book';
+import type { Book as ThreeBook } from '@objectifthunes/three-book';
 
 export interface UsePageTurningOptions {
   /** Disable pointer events without unmounting. Default: true. */

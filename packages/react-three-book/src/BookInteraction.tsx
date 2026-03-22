@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import type { Book as ThreeBook } from './core/Book';
+import type { Book as ThreeBook } from '@objectifthunes/three-book';
 import { useBook } from './context';
 import { usePageTurning } from './hooks/usePageTurning';
 

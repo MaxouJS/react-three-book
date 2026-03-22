@@ -20,7 +20,7 @@
 
 import { useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import type { BookContent } from '../core/BookContent';
+import type { BookContent } from '@objectifthunes/three-book';
 
 function collectTextures(content: BookContent): THREE.Texture[] {
   const all = [...content.covers, ...content.pages];

@@ -4,16 +4,15 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { TextBlock, TextOverlayContent, SpreadContent } from '@objectifthunes/react-three-book';
-import type { DemoParams, PageTextBlock } from '../state';
+import { TextBlock, drawImageWithFit } from '@objectifthunes/react-three-book';
+import type { DemoParams, ImageSlot, PageTextBlock } from '../state';
 import { FONT_OPTIONS, createDefaultTextBlock, PX_PER_UNIT } from '../state';
 
 interface PageEditorProps {
   params: DemoParams;
+  pageSlots: ImageSlot[];
   pageTextBlocks: PageTextBlock[][];
   spreadPages: Set<number>;
-  overlaysRef: React.RefObject<(TextOverlayContent | null)[]>;
-  spreadsRef: React.RefObject<Map<number, SpreadContent>>;
   onPageTextBlocksChange: (blocks: PageTextBlock[][]) => void;
 }
 
@@ -39,7 +38,7 @@ _measureCanvas.width = 1;
 _measureCanvas.height = 1;
 const measureCtx = _measureCanvas.getContext('2d')!;
 
-export default function PageEditor({ params, pageTextBlocks, spreadPages, overlaysRef, spreadsRef, onPageTextBlocksChange }: PageEditorProps) {
+export default function PageEditor({ params, pageSlots, pageTextBlocks, spreadPages, onPageTextBlocksChange }: PageEditorProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [selectedIdx, setSelectedIdx] = useState(-1);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -89,7 +88,7 @@ export default function PageEditor({ params, pageTextBlocks, spreadPages, overla
     });
   }, [effectivePage, selectedIdx, updateBlocks]);
 
-  // rAF render loop — draws real overlay canvas + selection outlines
+  // rAF render loop — draws page preview with text blocks + selection outlines
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -101,16 +100,40 @@ export default function PageEditor({ params, pageTextBlocks, spreadPages, overla
       canvas!.height = displayH;
       ctx.clearRect(0, 0, displayW, displayH);
 
-      // Draw real overlay/spread canvas
+      // Draw page background + image (matches three-book overlay canvas)
+      ctx.fillStyle = params.pageColor;
+      ctx.fillRect(0, 0, displayW, displayH);
+
+      // Draw slot image if present
+      const slot = pageSlots[effectivePage];
+      if (slot?.useImage && slot.image) {
+        const imgW = isSpreadMode ? canvasW : canvasW;
+        const imgH = canvasH;
+        const margin = slot.fullBleed ? 0 : Math.round(Math.min(imgW, imgH) * 0.11);
+        ctx.save();
+        ctx.scale(scale, scale);
+        drawImageWithFit(ctx, slot.image, margin, margin, imgW - margin * 2, imgH - margin * 2, slot.fitMode);
+        ctx.restore();
+      }
+
+      // Draw text blocks onto preview
+      ctx.save();
+      ctx.scale(scale, scale);
+      for (const b of blocks) {
+        if (!b.text) continue;
+        const tb = new TextBlock({
+          text: b.text, x: b.x, y: b.y, width: b.width,
+          fontFamily: b.fontFamily || params.bookFont,
+          fontSize: b.fontSize, fontWeight: b.fontWeight, fontStyle: b.fontStyle,
+          color: b.color, textAlign: b.textAlign, lineHeight: 1.4,
+          shadowColor: 'rgba(255,255,255,0.6)', shadowBlur: 3,
+        });
+        tb.draw(ctx);
+      }
+      ctx.restore();
+
+      // Draw spread fold line
       if (isSpreadMode) {
-        const spread = spreadsRef.current?.get(effectivePage);
-        if (spread) {
-          ctx.drawImage(spread.canvas, 0, 0, displayW, displayH);
-        } else {
-          ctx.fillStyle = params.pageColor;
-          ctx.fillRect(0, 0, displayW, displayH);
-        }
-        // Center fold line
         ctx.save();
         ctx.strokeStyle = 'rgba(236,242,255,0.25)';
         ctx.lineWidth = 1;
@@ -120,18 +143,9 @@ export default function PageEditor({ params, pageTextBlocks, spreadPages, overla
         ctx.lineTo(displayW / 2, displayH);
         ctx.stroke();
         ctx.restore();
-      } else {
-        const overlays = overlaysRef.current;
-        const overlay = overlays?.[page];
-        if (overlay) {
-          ctx.drawImage(overlay.canvas, 0, 0, displayW, displayH);
-        } else {
-          ctx.fillStyle = params.pageColor;
-          ctx.fillRect(0, 0, displayW, displayH);
-        }
       }
 
-      // Draw selection outlines using accurate TextBlock measurement
+      // Draw selection outlines
       for (let i = 0; i < blocks.length; i++) {
         const b = blocks[i];
         const bw = b.width > 0 ? b.width : 200;
@@ -152,9 +166,7 @@ export default function PageEditor({ params, pageTextBlocks, spreadPages, overla
         ctx.save();
         ctx.font = 'bold 9px sans-serif';
         ctx.fillStyle = active ? '#89d8b0' : 'rgba(236,242,255,0.5)';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        ctx.fillText(`T${i + 1}`, sx + 3, sy + 2);
+        ctx.fillText(`T${i + 1}`, sx + 3, sy + 10);
         ctx.restore();
       }
 
@@ -163,7 +175,7 @@ export default function PageEditor({ params, pageTextBlocks, spreadPages, overla
 
     rafRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [blocks, selectedIdx, params.pageColor, params.bookFont, displayW, displayH, scale, page, effectivePage, isSpreadMode, overlaysRef, spreadsRef, blockHeight]);
+  }, [blocks, selectedIdx, params.pageColor, params.bookFont, displayW, displayH, scale, page, effectivePage, isSpreadMode, blockHeight, pageSlots]);
 
   // Pointer events
 

@@ -1,6 +1,6 @@
 {
   "name": "@objectifthunes/react-three-book",
-  "version": "0.4.2",
+  "version": "0.6.1",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,10 +22,12 @@
   "peerDependencies": {
     "three": ">=0.150.0",
     "react": ">=18.0.0",
-    "@react-three/fiber": ">=8.0.0"
+    "@react-three/fiber": ">=8.0.0",
+    "@objectifthunes/three-book": ">=0.5.0"
   },
   "dependencies": {},
   "devDependencies": {
+    "@objectifthunes/three-book": "^0.5.0",
     "three": "^0.172.0",
     "@types/three": "^0.172.0",
     "react": "^18.3.0",

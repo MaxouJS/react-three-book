@@ -12,8 +12,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Book as ThreeBook } from '../core/Book';
-import type { BookOptions } from '../core/Book';
+import { Book as ThreeBook } from '@objectifthunes/three-book';
+import type { BookOptions } from '@objectifthunes/three-book';
 
 export interface UseBookRefResult {
   /** Ref to the ThreeBook instance (null until init succeeds). */
@@ -70,7 +70,7 @@ export function useBookRef(
   // Set properties during render — guarded setters skip unchanged values.
   const book = bookRef.current;
   if (book && ready) {
-    book.content = options.content ?? null;
+    if (options.content !== undefined) book.content = options.content;
     book.binding = options.binding ?? null;
     book.castShadows = options.castShadows ?? true;
     book.alignToGround = options.alignToGround ?? false;

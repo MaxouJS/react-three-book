@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { TextOverlayContent } from '../core/TextOverlayContent';
-import type { TextOverlayContentOptions } from '../core/TextOverlayContent';
+import { TextOverlayContent } from '@objectifthunes/three-book';
+import type { TextOverlayContentOptions } from '@objectifthunes/three-book';
 import { useBook } from '../context';
 
 /**

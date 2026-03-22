@@ -7,7 +7,7 @@
  */
 
 import { createContext, useContext } from 'react';
-import type { Book as ThreeBook } from './core/Book';
+import type { Book as ThreeBook } from '@objectifthunes/three-book';
 
 export const BookContext = createContext<ThreeBook | null>(null);
 

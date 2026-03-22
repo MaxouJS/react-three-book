@@ -10,7 +10,7 @@ export default defineConfig({
       fileName: 'index',
     },
     rollupOptions: {
-      external: ['three', 'react', 'react/jsx-runtime', '@react-three/fiber'],
+      external: ['three', 'react', 'react/jsx-runtime', '@react-three/fiber', '@objectifthunes/three-book'],
     },
   },
 });

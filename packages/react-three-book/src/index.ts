@@ -25,6 +25,19 @@ export type { BookProps } from './Book';
 export { BookInteraction } from './BookInteraction';
 export type { BookInteractionProps } from './BookInteraction';
 
+// ── Declarative content components ───────────────────────────────────────────
+export { Cover } from './components/Cover';
+export type { CoverProps } from './components/Cover';
+
+export { Page } from './components/Page';
+export type { PageProps } from './components/Page';
+
+export { Spread } from './components/Spread';
+export type { SpreadProps } from './components/Spread';
+
+export { Text } from './components/Text';
+export type { TextProps } from './components/Text';
+
 // ── Context ───────────────────────────────────────────────────────────────────
 export { BookContext, useBook, useRequiredBook } from './context';
 
@@ -52,25 +65,25 @@ export { useTextOverlay } from './hooks/useTextOverlay';
 export { drawImageWithFit, createPageTexture, loadImage, PX_PER_UNIT } from './textureUtils';
 export type { ImageFitMode, LoadedImage } from './textureUtils';
 
-// ── Core library (re-exported for consumers that need raw Three.js types) ─────
-export { Book as ThreeBook, BookHeightException } from './core/Book';
-export type { BookOptions, BookRaycastHit, PaperSetupInit } from './core/Book';
+// ── Core library (re-exported from @objectifthunes/three-book) ───────────────
+export { Book as ThreeBook, BookHeightException } from '@objectifthunes/three-book';
+export type { BookOptions, BookRaycastHit, PaperSetupInit } from '@objectifthunes/three-book';
 
-export { BookContent } from './core/BookContent';
-export { BookDirection } from './core/BookDirection';
-export { BookBinding, BookBound } from './core/BookBinding';
-export { StapleBookBound, StapleBookBinding, StapleSetup } from './core/StapleBinding';
+export { BookContent } from '@objectifthunes/three-book';
+export { BookDirection } from '@objectifthunes/three-book';
+export { BookBinding, BookBound } from '@objectifthunes/three-book';
+export { StapleBookBound, StapleBookBinding, StapleSetup } from '@objectifthunes/three-book';
 
-export { Paper } from './core/Paper';
-export { PaperSetup } from './core/PaperSetup';
-export { PaperUVMargin } from './core/PaperUVMargin';
-export { PaperMeshData } from './core/PaperMeshData';
-export { PaperMaterialData } from './core/PaperMaterialData';
-export { PaperPattern } from './core/PaperPattern';
-export { PaperNode } from './core/PaperNode';
-export { PaperSeam, PaperBorder, PaperNodeMargin } from './core/PaperStructs';
+export { Paper } from '@objectifthunes/three-book';
+export { PaperSetup } from '@objectifthunes/three-book';
+export { PaperUVMargin } from '@objectifthunes/three-book';
+export { PaperMeshData } from '@objectifthunes/three-book';
+export { PaperMaterialData } from '@objectifthunes/three-book';
+export { PaperPattern } from '@objectifthunes/three-book';
+export { PaperNode } from '@objectifthunes/three-book';
+export { PaperSeam, PaperBorder, PaperNodeMargin } from '@objectifthunes/three-book';
 
-export { Cylinder } from './core/Cylinder';
+export { Cylinder } from '@objectifthunes/three-book';
 
 export {
   AutoTurnDirection,
@@ -80,19 +93,19 @@ export {
   AutoTurnSettingMode,
   AutoTurnSettingCurveTimeMode,
   AnimationCurve,
-} from './core/AutoTurn';
-export type { Keyframe } from './core/AutoTurn';
+} from '@objectifthunes/three-book';
+export type { Keyframe } from '@objectifthunes/three-book';
 
-export { BookRenderer, RendererFactory, MeshFactory, PaperMeshDataPool } from './core/Renderer';
-export type { IPageContent } from './core/PageContent';
-export type { PropertyBlock } from './core/types';
-export { PageContent, SpritePageContent2 } from './core/PageContent';
+export { BookRenderer, RendererFactory, MeshFactory, PaperMeshDataPool } from '@objectifthunes/three-book';
+export type { IPageContent } from '@objectifthunes/three-book';
+export type { PropertyBlock } from '@objectifthunes/three-book';
+export { PageContent, SpritePageContent2 } from '@objectifthunes/three-book';
 
-export { TextBlock } from './core/TextBlock';
-export type { TextBlockOptions } from './core/TextBlock';
+export { TextBlock } from '@objectifthunes/three-book';
+export type { TextBlockOptions } from '@objectifthunes/three-book';
 
-export { TextOverlayContent } from './core/TextOverlayContent';
-export type { TextOverlayContentOptions } from './core/TextOverlayContent';
+export { TextOverlayContent } from '@objectifthunes/three-book';
+export type { TextOverlayContentOptions } from '@objectifthunes/three-book';
 
-export { SpreadContent, getSpreadPairs } from './core/SpreadContent';
-export type { SpreadContentOptions } from './core/SpreadContent';
+export { SpreadContent, getSpreadPairs } from '@objectifthunes/three-book';
+export type { SpreadContentOptions } from '@objectifthunes/three-book';
