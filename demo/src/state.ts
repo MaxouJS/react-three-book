@@ -47,7 +47,7 @@ export function createDefaultTextBlock(pageWidth: number, pageHeight: number): P
   const cw = Math.round(pageWidth * PX_PER_UNIT);
   const ch = Math.round(pageHeight * PX_PER_UNIT);
   return {
-    text: '',
+    text: 'Your text here',
     x: Math.round(cw * 0.06),
     y: Math.round(ch * 0.55),
     width: Math.round(cw * 0.88),

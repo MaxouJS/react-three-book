@@ -8,6 +8,13 @@
  *   Surface 2..N+1: Page 1..N
  *   Surface N+2: Back Cover Inner
  *   Surface N+3: Back Cover Outer
+ *
+ * Interaction model:
+ *   - Background image is always the bottom layer — never "selected"
+ *   - selectedIdx: -1 = nothing, 0+ = text block index
+ *   - Click on text block → select + drag text
+ *   - Click on empty space → deselect text, begin image pan (if image present)
+ *   - Scroll wheel → cursor-centric zoom on image (no selection needed)
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -26,7 +33,15 @@ interface PageEditorProps {
   onCoverSlotChange: (i: number, updater: (s: ImageSlot) => ImageSlot) => void;
 }
 
-const DISPLAY_MAX = 300;
+interface DragState {
+  type: 'text' | 'image';
+  startX: number;
+  startY: number;
+  originX: number;
+  originY: number;
+}
+
+const DISPLAY_MAX = 360;
 
 const BTN: React.CSSProperties = {
   padding: '4px 10px', borderRadius: 6,
@@ -58,7 +73,7 @@ export default function PageEditor({
   const [selectedIdx, setSelectedIdx] = useState(-1);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
-  const dragRef = useRef<{ startX: number; startY: number; blockX: number; blockY: number } | null>(null);
+  const dragRef = useRef<DragState | null>(null);
 
   const totalSurfaces = 4 + params.pageCount;
   const surface = Math.min(currentSurface, totalSurfaces - 1);
@@ -80,7 +95,6 @@ export default function PageEditor({
 
   // Text blocks — empty for covers
   const blocks = isCover ? [] : (pageTextBlocks[effectivePageIdx] ?? []);
-  const imageSelected = selectedIdx === -2;
   const selected = selectedIdx >= 0 && selectedIdx < blocks.length ? blocks[selectedIdx] : null;
 
   // Dimensions depend on cover vs page
@@ -148,6 +162,7 @@ export default function PageEditor({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
+    const isDraggingImage = () => dragRef.current?.type === 'image';
 
     function draw() {
       canvas!.width = displayW;
@@ -174,24 +189,19 @@ export default function PageEditor({
         ctx.restore();
       }
 
-      // Draw image selection outline
-      if (imageSelected && slot?.imageRect) {
+      // Subtle outline during image pan drag
+      if (isDraggingImage() && currentSlot?.imageRect) {
+        const ir = currentSlot.imageRect;
         ctx.save();
-        ctx.strokeStyle = '#89d8b0';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 4]);
+        ctx.strokeStyle = 'rgba(137,216,176,0.4)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
         ctx.strokeRect(
-          slot.imageRect.x * scale,
-          slot.imageRect.y * scale,
-          slot.imageRect.width * scale,
-          slot.imageRect.height * scale,
+          ir.x * scale,
+          ir.y * scale,
+          ir.width * scale,
+          ir.height * scale,
         );
-        ctx.restore();
-
-        ctx.save();
-        ctx.font = 'bold 9px sans-serif';
-        ctx.fillStyle = '#89d8b0';
-        ctx.fillText('IMG', slot.imageRect.x * scale + 3, slot.imageRect.y * scale + 10);
         ctx.restore();
       }
 
@@ -258,7 +268,7 @@ export default function PageEditor({
 
     rafRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [blocks, selectedIdx, imageSelected, bgColor, params.bookFont, displayW, displayH, scale, surface, effectivePageIdx, isSpreadMode, isCover, blockHeight, pageSlots, coverSlots, currentSlot, canvasW, canvasH]);
+  }, [blocks, selectedIdx, bgColor, params.bookFont, displayW, displayH, scale, surface, effectivePageIdx, isSpreadMode, isCover, blockHeight, pageSlots, coverSlots, currentSlot, canvasW, canvasH]);
 
   // Pointer events
 
@@ -286,79 +296,98 @@ export default function PageEditor({
       if (hit >= 0) {
         setSelectedIdx(hit);
         const b = blocks[hit];
-        dragRef.current = { startX: cv.x, startY: cv.y, blockX: b.x, blockY: b.y };
+        dragRef.current = { type: 'text', startX: cv.x, startY: cv.y, originX: b.x, originY: b.y };
+        canvasRef.current!.style.cursor = 'grabbing';
         canvasRef.current?.setPointerCapture(e.pointerId);
         e.stopPropagation();
         return;
       }
     }
 
-    // Image hit test (covers and pages)
+    // No text hit — deselect any selected text block
+    setSelectedIdx(-1);
+
+    // If the current slot has an image with imageRect, begin image pan
     const slot = currentSlot;
     if (slot?.useImage && slot.image && slot.imageRect) {
       const ir = slot.imageRect;
-      if (cv.x >= ir.x && cv.x <= ir.x + ir.width && cv.y >= ir.y && cv.y <= ir.y + ir.height) {
-        setSelectedIdx(-2);
-        dragRef.current = { startX: cv.x, startY: cv.y, blockX: ir.x, blockY: ir.y };
-        canvasRef.current?.setPointerCapture(e.pointerId);
-        e.stopPropagation();
-        return;
-      }
+      dragRef.current = { type: 'image', startX: cv.x, startY: cv.y, originX: ir.x, originY: ir.y };
+      canvasRef.current!.style.cursor = 'grabbing';
+      canvasRef.current?.setPointerCapture(e.pointerId);
     }
 
-    setSelectedIdx(-1);
     e.stopPropagation();
   }, [toCanvas, hitTest, blocks, currentSlot, isCover]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     const drag = dragRef.current;
-    if (!drag) return;
-    const cv = toCanvas(e);
-    const dx = cv.x - drag.startX;
-    const dy = cv.y - drag.startY;
-    if (selectedIdx === -2) {
-      // Dragging image — capture drag origin before entering updater
-      const newX = drag.blockX + dx;
-      const newY = drag.blockY + dy;
-      onCurrentSlotChange((s) => {
-        if (!s.imageRect) return s;
-        return { ...s, imageRect: { ...s.imageRect, x: newX, y: newY } };
-      });
-    } else if (selectedIdx >= 0 && !isCover) {
-      updateSelected({
-        x: Math.max(0, Math.min(canvasW - 20, drag.blockX + dx)),
-        y: Math.max(0, Math.min(canvasH - 20, drag.blockY + dy)),
-      });
+    if (drag) {
+      const cv = toCanvas(e);
+      const dx = cv.x - drag.startX;
+      const dy = cv.y - drag.startY;
+      if (drag.type === 'image') {
+        // Panning image — update imageRect x/y directly
+        const newX = drag.originX + dx;
+        const newY = drag.originY + dy;
+        onCurrentSlotChange((s) => {
+          if (!s.imageRect) return s;
+          return { ...s, imageRect: { ...s.imageRect, x: newX, y: newY } };
+        });
+      } else if (drag.type === 'text' && selectedIdx >= 0 && !isCover) {
+        updateSelected({
+          x: Math.max(-canvasW + 40, Math.min(canvasW - 40, drag.originX + dx)),
+          y: Math.max(-canvasH + 40, Math.min(canvasH - 40, drag.originY + dy)),
+        });
+      }
+    } else {
+      // Hover feedback — no drag in progress
+      const cv = toCanvas(e);
+      if (!isCover) {
+        const hit = hitTest(cv.x, cv.y);
+        if (hit >= 0) {
+          canvasRef.current!.style.cursor = 'grab';
+          return;
+        }
+      }
+      // Empty space — show move cursor if image is pannable
+      if (currentSlot?.useImage && currentSlot.image && currentSlot.imageRect) {
+        canvasRef.current!.style.cursor = 'move';
+        return;
+      }
+      canvasRef.current!.style.cursor = 'default';
     }
-  }, [toCanvas, selectedIdx, canvasW, canvasH, updateSelected, onCurrentSlotChange, isCover]);
+  }, [toCanvas, selectedIdx, canvasW, canvasH, updateSelected, onCurrentSlotChange, isCover, hitTest, currentSlot]);
 
   const onPointerUp = useCallback(() => {
     dragRef.current = null;
+    if (canvasRef.current) canvasRef.current.style.cursor = 'default';
   }, []);
 
-  // Wheel-to-zoom for image (native listener with passive: false for preventDefault)
+  // Wheel-to-zoom — cursor-centric, no selection needed (native listener with passive: false)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     function onWheel(e: WheelEvent) {
-      if (selectedIdx !== -2) return;
       const slot = currentSlot;
-      if (!slot?.imageRect) return;
+      if (!slot?.useImage || !slot.image || !slot.imageRect) return;
       e.preventDefault();
-      const factor = e.deltaY > 0 ? 0.95 : 1.05;
+      const rect = canvas!.getBoundingClientRect();
+      const cursorX = (e.clientX - rect.left) / scale;
+      const cursorY = (e.clientY - rect.top) / scale;
+      const factor = e.deltaY > 0 ? 0.90 : 1.10;
       onCurrentSlotChange((s) => {
         if (!s.imageRect) return s;
         const ir = s.imageRect;
-        const cx = ir.x + ir.width / 2;
-        const cy = ir.y + ir.height / 2;
-        const nw = ir.width * factor;
-        const nh = ir.height * factor;
-        return { ...s, imageRect: { x: cx - nw / 2, y: cy - nh / 2, width: nw, height: nh } };
+        const newW = ir.width * factor;
+        const newH = ir.height * factor;
+        const newX = cursorX - (cursorX - ir.x) * factor;
+        const newY = cursorY - (cursorY - ir.y) * factor;
+        return { ...s, imageRect: { x: newX, y: newY, width: newW, height: newH } };
       });
     }
     canvas.addEventListener('wheel', onWheel, { passive: false });
     return () => canvas.removeEventListener('wheel', onWheel);
-  }, [selectedIdx, currentSlot, onCurrentSlotChange]);
+  }, [currentSlot, onCurrentSlotChange, scale]);
 
   // Reset selection when changing surfaces
   useEffect(() => {
@@ -457,7 +486,7 @@ export default function PageEditor({
         width={displayW}
         height={displayH}
         style={{
-          display: 'block', borderRadius: 8, cursor: 'crosshair',
+          display: 'block', borderRadius: 8, cursor: 'default',
           border: '1px solid rgba(236,242,255,0.12)', marginBottom: 8,
           maxWidth: '100%',
         }}
