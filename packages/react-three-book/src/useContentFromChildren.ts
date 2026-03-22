@@ -18,7 +18,7 @@ import {
 } from '@objectifthunes/three-book';
 import type { TextBlockOptions } from '@objectifthunes/three-book';
 import { createPageTexture, PX_PER_UNIT } from './textureUtils';
-import type { ImageFitMode } from './textureUtils';
+import type { ImageFitMode, ImageRect } from './textureUtils';
 import type { CoverProps } from './components/Cover';
 import type { PageProps } from './components/Page';
 import type { SpreadProps } from './components/Spread';
@@ -50,6 +50,7 @@ interface ContentDescriptor {
   color?: string;
   fitMode?: ImageFitMode;
   fullBleed?: boolean;
+  imageRect?: ImageRect | null;
   texts: TextDescriptor[];
 }
 
@@ -105,6 +106,7 @@ function extractDescriptors(children: ReactNode): ContentDescriptor[] {
         color: props.color,
         fitMode: props.fitMode,
         fullBleed: props.fullBleed,
+        imageRect: props.imageRect,
         texts: extractTexts(props.children),
       });
       coverIndex++;
@@ -118,6 +120,7 @@ function extractDescriptors(children: ReactNode): ContentDescriptor[] {
         color: props.color,
         fitMode: props.fitMode,
         fullBleed: props.fullBleed,
+        imageRect: props.imageRect,
         texts: extractTexts(props.children),
       });
     } else if (displayName === 'BookSpread') {
@@ -132,6 +135,7 @@ function extractDescriptors(children: ReactNode): ContentDescriptor[] {
         color: props.color,
         fitMode: props.fitMode,
         fullBleed: props.fullBleed,
+        imageRect: props.imageRect,
         texts: extractTexts(props.children),
       });
     }
@@ -149,6 +153,7 @@ function serializeDescriptors(descs: ContentDescriptor[]): string {
     color: d.color,
     fitMode: d.fitMode,
     fullBleed: d.fullBleed,
+    imageRect: d.imageRect ?? null,
     texts: d.texts,
   })));
 }
@@ -188,7 +193,7 @@ function buildContent(
         if (desc.image || desc.color) {
           const tex = createPageTexture(
             desc.color ?? '#cc0000', desc.label, desc.image ?? null,
-            desc.fitMode ?? 'cover', desc.fullBleed ?? false, coverWidth, coverHeight,
+            desc.fitMode ?? 'cover', desc.fullBleed ?? false, coverWidth, coverHeight, desc.imageRect,
           );
           overlay.source = (tex.image as HTMLCanvasElement) ?? null;
         }
@@ -201,7 +206,7 @@ function buildContent(
         content.covers.push(
           createPageTexture(
             desc.color ?? '#cc0000', desc.label, desc.image ?? null,
-            desc.fitMode ?? 'cover', desc.fullBleed ?? false, coverWidth, coverHeight,
+            desc.fitMode ?? 'cover', desc.fullBleed ?? false, coverWidth, coverHeight, desc.imageRect,
           ),
         );
       }
@@ -211,7 +216,7 @@ function buildContent(
         if (desc.image || desc.color) {
           const tex = createPageTexture(
             desc.color ?? '#f5f5dc', desc.label, desc.image ?? null,
-            desc.fitMode ?? 'cover', desc.fullBleed ?? false, pageWidth, pageHeight,
+            desc.fitMode ?? 'cover', desc.fullBleed ?? false, pageWidth, pageHeight, desc.imageRect,
           );
           overlay.source = (tex.image as HTMLCanvasElement) ?? null;
         }
@@ -224,7 +229,7 @@ function buildContent(
         content.pages.push(
           createPageTexture(
             desc.color ?? '#f5f5dc', desc.label, desc.image ?? null,
-            desc.fitMode ?? 'cover', desc.fullBleed ?? false, pageWidth, pageHeight,
+            desc.fitMode ?? 'cover', desc.fullBleed ?? false, pageWidth, pageHeight, desc.imageRect,
           ),
         );
       }
@@ -232,8 +237,8 @@ function buildContent(
       const spread = new SpreadContent({ pageWidth: pageCW, pageHeight: pageCH });
       if (desc.image || desc.color) {
         const tex = createPageTexture(
-          desc.color ?? '#f5f5dc', '', desc.image ?? null,
-          desc.fitMode ?? 'cover', desc.fullBleed ?? false, pageWidth * 2, pageHeight,
+          desc.color ?? '#f5f5dc', desc.label, desc.image ?? null,
+          desc.fitMode ?? 'cover', desc.fullBleed ?? false, pageWidth * 2, pageHeight, desc.imageRect,
         );
         spread.source = (tex.image as HTMLCanvasElement) ?? null;
       }

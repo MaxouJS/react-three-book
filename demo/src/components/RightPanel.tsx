@@ -4,8 +4,9 @@
  */
 
 import { useCallback } from 'react';
-import { drawImageWithFit, loadImage, getSpreadPairs } from '@objectifthunes/react-three-book';
+import { drawImageWithFit, loadImage, getSpreadPairs, computeDefaultImageRect } from '@objectifthunes/react-three-book';
 import type { ImageSlot, ImageFitMode, DemoParams } from '../state';
+import { PX_PER_UNIT } from '../state';
 import { SectionTitle } from './UiHelpers';
 
 interface RightPanelProps {
@@ -80,20 +81,46 @@ function TextureCard({ label, slot, bgColor, aspectW, aspectH, onFitModeChange, 
 export default function RightPanel({ params, coverSlots, pageSlots, spreadPages, onCoverSlotChange, onPageSlotChange, onSpreadPagesChange }: RightPanelProps) {
   const coverLabels = ['Front Outer', 'Front Inner', 'Back Inner', 'Back Outer'];
 
+  const canvasDims = useCallback((index: number, onSlotChange: typeof onCoverSlotChange) => {
+    const isCover = onSlotChange === onCoverSlotChange;
+    const isSpread = !isCover && spreadPages.has(index);
+    const w = isCover ? params.coverWidth : params.pageWidth;
+    const h = isCover ? params.coverHeight : params.pageHeight;
+    const canvasW = Math.round(w * PX_PER_UNIT) * (isSpread ? 2 : 1);
+    const canvasH = Math.round(h * PX_PER_UNIT);
+    return { canvasW, canvasH };
+  }, [params.coverWidth, params.coverHeight, params.pageWidth, params.pageHeight, spreadPages, onCoverSlotChange]);
+
   const makeHandlers = useCallback((index: number, onSlotChange: (i: number, u: (s: ImageSlot) => ImageSlot) => void, slot: ImageSlot) => ({
-    onFitModeChange: (mode: ImageFitMode) => onSlotChange(index, (s) => ({ ...s, fitMode: mode })),
-    onFullBleedChange: (fullBleed: boolean) => onSlotChange(index, (s) => ({ ...s, fullBleed })),
+    onFitModeChange: (mode: ImageFitMode) => onSlotChange(index, (s) => {
+      const updated = { ...s, fitMode: mode };
+      if (s.image && s.useImage) {
+        const { canvasW, canvasH } = canvasDims(index, onSlotChange);
+        updated.imageRect = computeDefaultImageRect(s.image, canvasW, canvasH, mode, s.fullBleed);
+      }
+      return updated;
+    }),
+    onFullBleedChange: (fullBleed: boolean) => onSlotChange(index, (s) => {
+      const updated = { ...s, fullBleed };
+      if (s.image && s.useImage) {
+        const { canvasW, canvasH } = canvasDims(index, onSlotChange);
+        updated.imageRect = computeDefaultImageRect(s.image, canvasW, canvasH, s.fitMode, fullBleed);
+      }
+      return updated;
+    }),
     onClear: () => {
       if (slot.objectUrl) URL.revokeObjectURL(slot.objectUrl);
-      onSlotChange(index, () => ({ ...slot, image: null, objectUrl: null, useImage: false }));
+      onSlotChange(index, () => ({ ...slot, image: null, objectUrl: null, useImage: false, imageRect: null }));
     },
     onFileChange: async (file: File | null) => {
       const result = await loadImage(file);
       if (!result) return;
       if (slot.objectUrl) URL.revokeObjectURL(slot.objectUrl);
-      onSlotChange(index, () => ({ ...slot, image: result.image, objectUrl: result.objectUrl, useImage: true }));
+      const { canvasW, canvasH } = canvasDims(index, onSlotChange);
+      const imageRect = computeDefaultImageRect(result.image, canvasW, canvasH, slot.fitMode, slot.fullBleed);
+      onSlotChange(index, () => ({ ...slot, image: result.image, objectUrl: result.objectUrl, useImage: true, imageRect }));
     },
-  }), []);
+  }), [canvasDims]);
 
   const eligibleSpreads = new Set(getSpreadPairs(params.pageCount));
 

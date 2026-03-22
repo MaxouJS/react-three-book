@@ -1,7 +1,7 @@
 import { BookDirection, PX_PER_UNIT } from '@objectifthunes/react-three-book';
-import type { ImageFitMode } from '@objectifthunes/react-three-book';
+import type { ImageFitMode, ImageRect } from '@objectifthunes/react-three-book';
 
-export type { ImageFitMode };
+export type { ImageFitMode, ImageRect };
 export { PX_PER_UNIT };
 
 export type DirectionOption = 'left-to-right' | 'right-to-left' | 'up-to-down' | 'down-to-up';
@@ -12,6 +12,7 @@ export interface ImageSlot {
   useImage: boolean;
   fitMode: ImageFitMode;
   fullBleed: boolean;
+  imageRect: ImageRect | null;
 }
 
 export interface PageTextBlock {
@@ -130,5 +131,6 @@ export const EMPTY_SLOT: ImageSlot = {
   useImage: false,
   fitMode: 'cover',
   fullBleed: true,
+  imageRect: null,
 };
 

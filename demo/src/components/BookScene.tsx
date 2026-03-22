@@ -50,6 +50,7 @@ export default function BookScene({
           color={params.pageColor}
           fitMode={s.fitMode}
           fullBleed={s.fullBleed}
+          imageRect={s.useImage ? s.imageRect : undefined}
         >
           {blocks.filter((b) => b.text).map((b, bi) => (
             <Text
@@ -84,6 +85,7 @@ export default function BookScene({
         color={params.pageColor}
         fitMode={s.fitMode}
         fullBleed={s.fullBleed}
+        imageRect={s.useImage ? s.imageRect : undefined}
       >
         {blocks.filter((b) => b.text).map((b, bi) => (
           <Text
@@ -155,6 +157,7 @@ export default function BookScene({
             color={params.coverColor}
             fitMode={s.fitMode}
             fullBleed={s.fullBleed}
+            imageRect={s.useImage ? s.imageRect : undefined}
           />
         ))}
 

@@ -1,19 +1,29 @@
 /**
- * PageEditor — WYSIWYG text block editor for book pages.
+ * PageEditor — WYSIWYG text block editor for book pages and covers.
  * Renders bare content (no panel wrapper — parent provides the container).
+ *
+ * Unified surface navigation:
+ *   Surface 0: Front Cover Outer
+ *   Surface 1: Front Cover Inner
+ *   Surface 2..N+1: Page 1..N
+ *   Surface N+2: Back Cover Inner
+ *   Surface N+3: Back Cover Outer
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TextBlock, drawImageWithFit } from '@objectifthunes/react-three-book';
-import type { DemoParams, ImageSlot, PageTextBlock } from '../state';
+import type { DemoParams, ImageSlot, ImageRect, PageTextBlock } from '../state';
 import { FONT_OPTIONS, createDefaultTextBlock, PX_PER_UNIT } from '../state';
 
 interface PageEditorProps {
   params: DemoParams;
   pageSlots: ImageSlot[];
+  coverSlots: ImageSlot[];
   pageTextBlocks: PageTextBlock[][];
   spreadPages: Set<number>;
   onPageTextBlocksChange: (blocks: PageTextBlock[][]) => void;
+  onPageSlotChange: (i: number, updater: (s: ImageSlot) => ImageSlot) => void;
+  onCoverSlotChange: (i: number, updater: (s: ImageSlot) => ImageSlot) => void;
 }
 
 const DISPLAY_MAX = 300;
@@ -32,34 +42,78 @@ const MINI_SELECT: React.CSSProperties = {
   color: '#eef4ff', fontSize: 11, fontFamily: 'inherit',
 };
 
+const COVER_LABELS = ['Front Cover Outer', 'Front Cover Inner', 'Back Cover Inner', 'Back Cover Outer'];
+
 // Offscreen context for TextBlock measurement (font metrics only).
 const _measureCanvas = document.createElement('canvas');
 _measureCanvas.width = 1;
 _measureCanvas.height = 1;
 const measureCtx = _measureCanvas.getContext('2d')!;
 
-export default function PageEditor({ params, pageSlots, pageTextBlocks, spreadPages, onPageTextBlocksChange }: PageEditorProps) {
-  const [currentPage, setCurrentPage] = useState(0);
+export default function PageEditor({
+  params, pageSlots, coverSlots, pageTextBlocks, spreadPages,
+  onPageTextBlocksChange, onPageSlotChange, onCoverSlotChange,
+}: PageEditorProps) {
+  const [currentSurface, setCurrentSurface] = useState(0);
   const [selectedIdx, setSelectedIdx] = useState(-1);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
   const dragRef = useRef<{ startX: number; startY: number; blockX: number; blockY: number } | null>(null);
 
-  const page = Math.min(currentPage, params.pageCount - 1);
-  const isSpread = spreadPages.has(page);
-  const isRightOfSpread = spreadPages.has(page - 1);
-  const effectivePage = isRightOfSpread ? page - 1 : page;
+  const totalSurfaces = 4 + params.pageCount;
+  const surface = Math.min(currentSurface, totalSurfaces - 1);
+
+  // Surface classification helpers
+  const isCover = surface === 0 || surface === 1 || surface === totalSurfaces - 2 || surface === totalSurfaces - 1;
+
+  /** Maps a cover surface index to 0-3. Only valid when isCover is true. */
+  const coverIdx = surface <= 1 ? surface : surface === totalSurfaces - 2 ? 2 : 3;
+
+  /** Maps a page surface index to 0-based page index. Only valid when isCover is false. */
+  const pageIdx = surface - 2;
+
+  // Spread logic — only applies to pages
+  const isSpread = !isCover && spreadPages.has(pageIdx);
+  const isRightOfSpread = !isCover && spreadPages.has(pageIdx - 1);
+  const effectivePageIdx = isRightOfSpread ? pageIdx - 1 : pageIdx;
   const isSpreadMode = isSpread || isRightOfSpread;
 
-  const blocks = pageTextBlocks[effectivePage] ?? [];
+  // Text blocks — empty for covers
+  const blocks = isCover ? [] : (pageTextBlocks[effectivePageIdx] ?? []);
+  const imageSelected = selectedIdx === -2;
   const selected = selectedIdx >= 0 && selectedIdx < blocks.length ? blocks[selectedIdx] : null;
 
+  // Dimensions depend on cover vs page
+  const surfaceWidth = isCover ? params.coverWidth : params.pageWidth;
+  const surfaceHeight = isCover ? params.coverHeight : params.pageHeight;
   const widthMultiplier = isSpreadMode ? 2 : 1;
-  const canvasW = Math.round(params.pageWidth * PX_PER_UNIT) * widthMultiplier;
-  const canvasH = Math.round(params.pageHeight * PX_PER_UNIT);
+  const canvasW = Math.round(surfaceWidth * PX_PER_UNIT) * widthMultiplier;
+  const canvasH = Math.round(surfaceHeight * PX_PER_UNIT);
   const scale = DISPLAY_MAX / Math.max(canvasW, canvasH);
   const displayW = Math.round(canvasW * scale);
   const displayH = Math.round(canvasH * scale);
+
+  // Background color
+  const bgColor = isCover ? params.coverColor : params.pageColor;
+
+  // Current slot (cover or page)
+  const currentSlot = isCover ? coverSlots[coverIdx] : pageSlots[effectivePageIdx];
+
+  // Correct slot change callback
+  const onCurrentSlotChange = useCallback((updater: (s: ImageSlot) => ImageSlot) => {
+    if (isCover) {
+      onCoverSlotChange(coverIdx, updater);
+    } else {
+      onPageSlotChange(effectivePageIdx, updater);
+    }
+  }, [isCover, coverIdx, effectivePageIdx, onCoverSlotChange, onPageSlotChange]);
+
+  // Surface label
+  const surfaceLabel = (() => {
+    if (isCover) return COVER_LABELS[coverIdx];
+    if (isSpreadMode) return `Spread ${effectivePageIdx + 1}\u2013${effectivePageIdx + 2}`;
+    return `Page ${pageIdx + 1}`;
+  })();
 
   /** Pixel-accurate height of a state text block using TextBlock measurement. */
   const blockHeight = useCallback((b: PageTextBlock): number => {
@@ -73,22 +127,22 @@ export default function PageEditor({ params, pageSlots, pageTextBlocks, spreadPa
   }, [params.bookFont]);
 
   // Immutable update helpers
-  const updateBlocks = useCallback((pageIdx: number, updater: (b: PageTextBlock[]) => PageTextBlock[]) => {
+  const updateBlocks = useCallback((pIdx: number, updater: (b: PageTextBlock[]) => PageTextBlock[]) => {
     const next = [...pageTextBlocks];
-    next[pageIdx] = updater([...(next[pageIdx] ?? [])]);
+    next[pIdx] = updater([...(next[pIdx] ?? [])]);
     onPageTextBlocksChange(next);
   }, [pageTextBlocks, onPageTextBlocksChange]);
 
   const updateSelected = useCallback((patch: Partial<PageTextBlock>) => {
-    if (selectedIdx < 0) return;
-    updateBlocks(effectivePage, (arr) => {
+    if (selectedIdx < 0 || isCover) return;
+    updateBlocks(effectivePageIdx, (arr) => {
       const copy = [...arr];
       copy[selectedIdx] = { ...copy[selectedIdx], ...patch };
       return copy;
     });
-  }, [effectivePage, selectedIdx, updateBlocks]);
+  }, [effectivePageIdx, selectedIdx, updateBlocks, isCover]);
 
-  // rAF render loop — draws page preview with text blocks + selection outlines
+  // rAF render loop — draws surface preview with text blocks + selection outlines
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -100,37 +154,64 @@ export default function PageEditor({ params, pageSlots, pageTextBlocks, spreadPa
       canvas!.height = displayH;
       ctx.clearRect(0, 0, displayW, displayH);
 
-      // Draw page background + image (matches three-book overlay canvas)
-      ctx.fillStyle = params.pageColor;
+      // Draw surface background + image
+      ctx.fillStyle = bgColor;
       ctx.fillRect(0, 0, displayW, displayH);
 
       // Draw slot image if present
-      const slot = pageSlots[effectivePage];
+      const slot = currentSlot;
       if (slot?.useImage && slot.image) {
-        const imgW = isSpreadMode ? canvasW : canvasW;
-        const imgH = canvasH;
-        const margin = slot.fullBleed ? 0 : Math.round(Math.min(imgW, imgH) * 0.11);
         ctx.save();
         ctx.scale(scale, scale);
-        drawImageWithFit(ctx, slot.image, margin, margin, imgW - margin * 2, imgH - margin * 2, slot.fitMode);
+        if (slot.imageRect) {
+          ctx.drawImage(slot.image, slot.imageRect.x, slot.imageRect.y, slot.imageRect.width, slot.imageRect.height);
+        } else {
+          const imgW = canvasW;
+          const imgH = canvasH;
+          const margin = slot.fullBleed ? 0 : Math.round(Math.min(imgW, imgH) * 0.11);
+          drawImageWithFit(ctx, slot.image, margin, margin, imgW - margin * 2, imgH - margin * 2, slot.fitMode);
+        }
         ctx.restore();
       }
 
-      // Draw text blocks onto preview
-      ctx.save();
-      ctx.scale(scale, scale);
-      for (const b of blocks) {
-        if (!b.text) continue;
-        const tb = new TextBlock({
-          text: b.text, x: b.x, y: b.y, width: b.width,
-          fontFamily: b.fontFamily || params.bookFont,
-          fontSize: b.fontSize, fontWeight: b.fontWeight, fontStyle: b.fontStyle,
-          color: b.color, textAlign: b.textAlign, lineHeight: 1.4,
-          shadowColor: 'rgba(255,255,255,0.6)', shadowBlur: 3,
-        });
-        tb.draw(ctx);
+      // Draw image selection outline
+      if (imageSelected && slot?.imageRect) {
+        ctx.save();
+        ctx.strokeStyle = '#89d8b0';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 4]);
+        ctx.strokeRect(
+          slot.imageRect.x * scale,
+          slot.imageRect.y * scale,
+          slot.imageRect.width * scale,
+          slot.imageRect.height * scale,
+        );
+        ctx.restore();
+
+        ctx.save();
+        ctx.font = 'bold 9px sans-serif';
+        ctx.fillStyle = '#89d8b0';
+        ctx.fillText('IMG', slot.imageRect.x * scale + 3, slot.imageRect.y * scale + 10);
+        ctx.restore();
       }
-      ctx.restore();
+
+      // Draw text blocks onto preview (pages only)
+      if (!isCover) {
+        ctx.save();
+        ctx.scale(scale, scale);
+        for (const b of blocks) {
+          if (!b.text) continue;
+          const tb = new TextBlock({
+            text: b.text, x: b.x, y: b.y, width: b.width,
+            fontFamily: b.fontFamily || params.bookFont,
+            fontSize: b.fontSize, fontWeight: b.fontWeight, fontStyle: b.fontStyle,
+            color: b.color, textAlign: b.textAlign, lineHeight: 1.4,
+            shadowColor: 'rgba(255,255,255,0.6)', shadowBlur: 3,
+          });
+          tb.draw(ctx);
+        }
+        ctx.restore();
+      }
 
       // Draw spread fold line
       if (isSpreadMode) {
@@ -145,29 +226,31 @@ export default function PageEditor({ params, pageSlots, pageTextBlocks, spreadPa
         ctx.restore();
       }
 
-      // Draw selection outlines
-      for (let i = 0; i < blocks.length; i++) {
-        const b = blocks[i];
-        const bw = b.width > 0 ? b.width : 200;
-        const bh = blockHeight(b);
-        const sx = b.x * scale;
-        const sy = b.y * scale;
-        const sw = bw * scale;
-        const sh = bh * scale;
+      // Draw selection outlines (pages only)
+      if (!isCover) {
+        for (let i = 0; i < blocks.length; i++) {
+          const b = blocks[i];
+          const bw = b.width > 0 ? b.width : 200;
+          const bh = blockHeight(b);
+          const sx = b.x * scale;
+          const sy = b.y * scale;
+          const sw = bw * scale;
+          const sh = bh * scale;
 
-        ctx.save();
-        const active = i === selectedIdx;
-        ctx.strokeStyle = active ? '#89d8b0' : 'rgba(236,242,255,0.4)';
-        ctx.lineWidth = active ? 2 : 1;
-        if (!active) ctx.setLineDash([3, 3]);
-        ctx.strokeRect(sx, sy, sw, sh);
-        ctx.restore();
+          ctx.save();
+          const active = i === selectedIdx;
+          ctx.strokeStyle = active ? '#89d8b0' : 'rgba(236,242,255,0.4)';
+          ctx.lineWidth = active ? 2 : 1;
+          if (!active) ctx.setLineDash([3, 3]);
+          ctx.strokeRect(sx, sy, sw, sh);
+          ctx.restore();
 
-        ctx.save();
-        ctx.font = 'bold 9px sans-serif';
-        ctx.fillStyle = active ? '#89d8b0' : 'rgba(236,242,255,0.5)';
-        ctx.fillText(`T${i + 1}`, sx + 3, sy + 10);
-        ctx.restore();
+          ctx.save();
+          ctx.font = 'bold 9px sans-serif';
+          ctx.fillStyle = active ? '#89d8b0' : 'rgba(236,242,255,0.5)';
+          ctx.fillText(`T${i + 1}`, sx + 3, sy + 10);
+          ctx.restore();
+        }
       }
 
       rafRef.current = requestAnimationFrame(draw);
@@ -175,7 +258,7 @@ export default function PageEditor({ params, pageSlots, pageTextBlocks, spreadPa
 
     rafRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [blocks, selectedIdx, params.pageColor, params.bookFont, displayW, displayH, scale, page, effectivePage, isSpreadMode, blockHeight, pageSlots]);
+  }, [blocks, selectedIdx, imageSelected, bgColor, params.bookFont, displayW, displayH, scale, surface, effectivePageIdx, isSpreadMode, isCover, blockHeight, pageSlots, coverSlots, currentSlot, canvasW, canvasH]);
 
   // Pointer events
 
@@ -196,40 +279,101 @@ export default function PageEditor({ params, pageSlots, pageTextBlocks, spreadPa
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     const cv = toCanvas(e);
-    const hit = hitTest(cv.x, cv.y);
-    setSelectedIdx(hit);
-    if (hit >= 0) {
-      const b = blocks[hit];
-      dragRef.current = { startX: cv.x, startY: cv.y, blockX: b.x, blockY: b.y };
-      canvasRef.current?.setPointerCapture(e.pointerId);
+
+    // Text block hit test (pages only)
+    if (!isCover) {
+      const hit = hitTest(cv.x, cv.y);
+      if (hit >= 0) {
+        setSelectedIdx(hit);
+        const b = blocks[hit];
+        dragRef.current = { startX: cv.x, startY: cv.y, blockX: b.x, blockY: b.y };
+        canvasRef.current?.setPointerCapture(e.pointerId);
+        e.stopPropagation();
+        return;
+      }
     }
+
+    // Image hit test (covers and pages)
+    const slot = currentSlot;
+    if (slot?.useImage && slot.image && slot.imageRect) {
+      const ir = slot.imageRect;
+      if (cv.x >= ir.x && cv.x <= ir.x + ir.width && cv.y >= ir.y && cv.y <= ir.y + ir.height) {
+        setSelectedIdx(-2);
+        dragRef.current = { startX: cv.x, startY: cv.y, blockX: ir.x, blockY: ir.y };
+        canvasRef.current?.setPointerCapture(e.pointerId);
+        e.stopPropagation();
+        return;
+      }
+    }
+
+    setSelectedIdx(-1);
     e.stopPropagation();
-  }, [toCanvas, hitTest, blocks]);
+  }, [toCanvas, hitTest, blocks, currentSlot, isCover]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!dragRef.current || selectedIdx < 0) return;
+    const drag = dragRef.current;
+    if (!drag) return;
     const cv = toCanvas(e);
-    const dx = cv.x - dragRef.current.startX;
-    const dy = cv.y - dragRef.current.startY;
-    updateSelected({
-      x: Math.max(0, Math.min(canvasW - 20, dragRef.current.blockX + dx)),
-      y: Math.max(0, Math.min(canvasH - 20, dragRef.current.blockY + dy)),
-    });
-  }, [toCanvas, selectedIdx, canvasW, canvasH, updateSelected]);
+    const dx = cv.x - drag.startX;
+    const dy = cv.y - drag.startY;
+    if (selectedIdx === -2) {
+      // Dragging image — capture drag origin before entering updater
+      const newX = drag.blockX + dx;
+      const newY = drag.blockY + dy;
+      onCurrentSlotChange((s) => {
+        if (!s.imageRect) return s;
+        return { ...s, imageRect: { ...s.imageRect, x: newX, y: newY } };
+      });
+    } else if (selectedIdx >= 0 && !isCover) {
+      updateSelected({
+        x: Math.max(0, Math.min(canvasW - 20, drag.blockX + dx)),
+        y: Math.max(0, Math.min(canvasH - 20, drag.blockY + dy)),
+      });
+    }
+  }, [toCanvas, selectedIdx, canvasW, canvasH, updateSelected, onCurrentSlotChange, isCover]);
 
   const onPointerUp = useCallback(() => {
     dragRef.current = null;
   }, []);
 
+  // Wheel-to-zoom for image (native listener with passive: false for preventDefault)
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    function onWheel(e: WheelEvent) {
+      if (selectedIdx !== -2) return;
+      const slot = currentSlot;
+      if (!slot?.imageRect) return;
+      e.preventDefault();
+      const factor = e.deltaY > 0 ? 0.95 : 1.05;
+      onCurrentSlotChange((s) => {
+        if (!s.imageRect) return s;
+        const ir = s.imageRect;
+        const cx = ir.x + ir.width / 2;
+        const cy = ir.y + ir.height / 2;
+        const nw = ir.width * factor;
+        const nh = ir.height * factor;
+        return { ...s, imageRect: { x: cx - nw / 2, y: cy - nh / 2, width: nw, height: nh } };
+      });
+    }
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', onWheel);
+  }, [selectedIdx, currentSlot, onCurrentSlotChange]);
+
+  // Reset selection when changing surfaces
+  useEffect(() => {
+    setSelectedIdx(-1);
+  }, [surface]);
+
   return (
     <>
-      {/* Page selector */}
+      {/* Surface selector */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <button style={BTN} onClick={() => { if (page > 0) { setCurrentPage(page - 1); setSelectedIdx(-1); } }}>{'\u25C0'}</button>
-        <span style={{ fontWeight: 600, fontSize: 12, minWidth: 120, textAlign: 'center' }}>
-          {isSpreadMode ? `Spread ${effectivePage + 1}\u2013${effectivePage + 2}` : `Page ${page + 1}`} of {params.pageCount}
+        <button style={BTN} onClick={() => { if (surface > 0) setCurrentSurface(surface - 1); }}>{'\u25C0'}</button>
+        <span style={{ fontWeight: 600, fontSize: 12, minWidth: 160, textAlign: 'center' }}>
+          {surfaceLabel} <span style={{ opacity: 0.5, fontWeight: 400 }}>({surface + 1}/{totalSurfaces})</span>
         </span>
-        <button style={BTN} onClick={() => { if (page < params.pageCount - 1) { setCurrentPage(page + 1); setSelectedIdx(-1); } }}>{'\u25B6'}</button>
+        <button style={BTN} onClick={() => { if (surface < totalSurfaces - 1) setCurrentSurface(surface + 1); }}>{'\u25B6'}</button>
       </div>
 
       {/* Toolbar */}
@@ -238,7 +382,7 @@ export default function PageEditor({ params, pageSlots, pageTextBlocks, spreadPa
           value={selected?.fontFamily ?? ''}
           style={{ ...MINI_SELECT, maxWidth: 120 }}
           onChange={(e) => updateSelected({ fontFamily: e.target.value })}
-          disabled={!selected}
+          disabled={!selected || isCover}
         >
           <option value="">Book default</option>
           {FONT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
@@ -249,26 +393,26 @@ export default function PageEditor({ params, pageSlots, pageTextBlocks, spreadPa
           value={selected?.fontSize ?? 22}
           style={{ ...MINI_SELECT, width: 52 }}
           onChange={(e) => updateSelected({ fontSize: parseInt(e.target.value, 10) || 22 })}
-          disabled={!selected}
+          disabled={!selected || isCover}
         />
 
         <button
           style={{ ...BTN, fontWeight: 'bold', minWidth: 28, background: selected?.fontWeight === 'bold' ? 'rgba(137,216,176,0.3)' : undefined }}
           onClick={() => updateSelected({ fontWeight: selected?.fontWeight === 'bold' ? 'normal' : 'bold' })}
-          disabled={!selected}
+          disabled={!selected || isCover}
         >B</button>
 
         <button
           style={{ ...BTN, fontStyle: 'italic', minWidth: 28, background: selected?.fontStyle === 'italic' ? 'rgba(137,216,176,0.3)' : undefined }}
           onClick={() => updateSelected({ fontStyle: selected?.fontStyle === 'italic' ? 'normal' : 'italic' })}
-          disabled={!selected}
+          disabled={!selected || isCover}
         >I</button>
 
         <input
           type="color" value={selected?.color ?? '#1a1a1a'}
           style={{ width: 28, height: 24, border: 'none', background: 'none', cursor: 'pointer' }}
           onChange={(e) => updateSelected({ color: e.target.value })}
-          disabled={!selected}
+          disabled={!selected || isCover}
         />
 
         {(['left', 'center', 'right'] as const).map((a) => (
@@ -276,7 +420,7 @@ export default function PageEditor({ params, pageSlots, pageTextBlocks, spreadPa
             key={a}
             style={{ ...BTN, minWidth: 28, background: selected?.textAlign === a ? 'rgba(137,216,176,0.3)' : undefined }}
             onClick={() => updateSelected({ textAlign: a })}
-            disabled={!selected}
+            disabled={!selected || isCover}
             title={a}
           >
             {a === 'left' ? '\u2190' : a === 'center' ? '\u2194' : '\u2192'}
@@ -288,17 +432,20 @@ export default function PageEditor({ params, pageSlots, pageTextBlocks, spreadPa
       <div style={{ display: 'flex', gap: 6, marginBottom: 8, width: '100%' }}>
         <button
           style={{ ...BTN, flex: 1 }}
+          disabled={isCover}
           onClick={() => {
+            if (isCover) return;
             const spreadW = isSpreadMode ? params.pageWidth * 2 : params.pageWidth;
-            updateBlocks(effectivePage, (arr) => [...arr, createDefaultTextBlock(spreadW, params.pageHeight)]);
+            updateBlocks(effectivePageIdx, (arr) => [...arr, createDefaultTextBlock(spreadW, params.pageHeight)]);
             setSelectedIdx(blocks.length);
           }}
         >+ Add Text</button>
         <button
           style={{ ...BTN, flex: 1 }}
-          disabled={selectedIdx < 0}
+          disabled={selectedIdx < 0 || isCover}
           onClick={() => {
-            updateBlocks(effectivePage, (arr) => arr.filter((_, j) => j !== selectedIdx));
+            if (isCover) return;
+            updateBlocks(effectivePageIdx, (arr) => arr.filter((_, j) => j !== selectedIdx));
             setSelectedIdx(-1);
           }}
         >{'\u2715'} Remove</button>
@@ -322,9 +469,9 @@ export default function PageEditor({ params, pageSlots, pageTextBlocks, spreadPa
       {/* Textarea */}
       <textarea
         rows={3}
-        placeholder="Select a text block, then type here\u2026"
+        placeholder={isCover ? 'Text editing not available on covers' : 'Select a text block, then type here\u2026'}
         value={selected?.text ?? ''}
-        disabled={!selected}
+        disabled={!selected || isCover}
         style={{
           width: '100%', boxSizing: 'border-box', padding: '6px 8px',
           borderRadius: 6, border: '1px solid rgba(236,242,255,0.18)',

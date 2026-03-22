@@ -5,8 +5,9 @@
 export {
   drawImageWithFit,
   createPageTexture,
+  computeDefaultImageRect,
   loadImage,
   PX_PER_UNIT,
 } from '@objectifthunes/three-book';
 
-export type { ImageFitMode, LoadedImage } from '@objectifthunes/three-book';
+export type { ImageFitMode, ImageRect, LoadedImage } from '@objectifthunes/three-book';

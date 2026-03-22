@@ -16,13 +16,15 @@
  */
 
 import type { ReactNode } from 'react';
-import type { ImageFitMode } from '../textureUtils';
+import type { ImageFitMode, ImageRect } from '../textureUtils';
 
 export interface CoverProps {
   image?: HTMLImageElement | null;
   color?: string;
   fitMode?: ImageFitMode;
   fullBleed?: boolean;
+  /** Custom image position/size in canvas pixels. Overrides fitMode when set. */
+  imageRect?: ImageRect | null;
   children?: ReactNode;
 }
 

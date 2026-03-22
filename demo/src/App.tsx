@@ -15,7 +15,9 @@ type Tab = 'book' | 'textures' | 'editor';
 const TAB_BTN: React.CSSProperties = {
   flex: 1,
   padding: '6px 0',
-  border: '1px solid rgba(236,242,255,0.15)',
+  borderWidth: 1,
+  borderStyle: 'solid',
+  borderColor: 'rgba(236,242,255,0.15)',
   borderRadius: 8,
   background: 'rgba(255,255,255,0.04)',
   color: 'rgba(236,242,255,0.55)',
@@ -187,7 +189,7 @@ export default function App() {
             <RightPanel params={params} coverSlots={coverSlots} pageSlots={pageSlots} spreadPages={spreadPages} onCoverSlotChange={onCoverSlotChange} onPageSlotChange={onPageSlotChange} onSpreadPagesChange={onSpreadPagesChange} />
           </div>
           <div style={{ display: activeTab === 'editor' ? 'block' : 'none' }}>
-            <PageEditor params={params} pageSlots={pageSlots} pageTextBlocks={pageTextBlocks} spreadPages={spreadPages} onPageTextBlocksChange={onPageTextBlocksChange} />
+            <PageEditor params={params} pageSlots={pageSlots} coverSlots={coverSlots} pageTextBlocks={pageTextBlocks} spreadPages={spreadPages} onPageTextBlocksChange={onPageTextBlocksChange} onPageSlotChange={onPageSlotChange} onCoverSlotChange={onCoverSlotChange} />
           </div>
         </div>
       ) : (

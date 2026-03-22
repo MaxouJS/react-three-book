@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@objectifthunes/react-three-book": "workspace:*",
-    "@objectifthunes/three-book": "^0.5.0",
+    "@objectifthunes/three-book": "^0.5.2",
     "@react-three/drei": "^9.115.0",
     "@react-three/fiber": "^8.17.0",
     "react": "^18.3.0",
