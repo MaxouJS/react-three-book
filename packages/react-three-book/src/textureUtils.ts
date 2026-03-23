@@ -4,6 +4,7 @@
  */
 export {
   drawImageWithFit,
+  createPageCanvas,
   createPageTexture,
   computeDefaultImageRect,
   loadImage,

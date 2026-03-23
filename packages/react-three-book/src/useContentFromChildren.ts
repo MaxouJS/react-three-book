@@ -17,7 +17,7 @@ import {
   Book as ThreeBook,
 } from '@objectifthunes/three-book';
 import type { TextBlockOptions } from '@objectifthunes/three-book';
-import { createPageTexture, PX_PER_UNIT } from './textureUtils';
+import { createPageCanvas, createPageTexture, PX_PER_UNIT } from './textureUtils';
 import type { ImageFitMode, ImageRect } from './textureUtils';
 import type { CoverProps } from './components/Cover';
 import type { PageProps } from './components/Page';
@@ -191,11 +191,10 @@ function buildContent(
       if (desc.texts.length > 0) {
         const overlay = new TextOverlayContent({ width: coverCW, height: coverCH });
         if (desc.image || desc.color) {
-          const tex = createPageTexture(
+          overlay.source = createPageCanvas(
             desc.color ?? '#cc0000', desc.label, desc.image ?? null,
             desc.fitMode ?? 'cover', desc.fullBleed ?? false, coverWidth, coverHeight, desc.imageRect,
           );
-          overlay.source = (tex.image as HTMLCanvasElement) ?? null;
         }
         for (const t of desc.texts) {
           overlay.addText(textDescriptorToOptions(t));
@@ -214,11 +213,10 @@ function buildContent(
       if (desc.texts.length > 0) {
         const overlay = new TextOverlayContent({ width: pageCW, height: pageCH });
         if (desc.image || desc.color) {
-          const tex = createPageTexture(
+          overlay.source = createPageCanvas(
             desc.color ?? '#f5f5dc', desc.label, desc.image ?? null,
             desc.fitMode ?? 'cover', desc.fullBleed ?? false, pageWidth, pageHeight, desc.imageRect,
           );
-          overlay.source = (tex.image as HTMLCanvasElement) ?? null;
         }
         for (const t of desc.texts) {
           overlay.addText(textDescriptorToOptions(t));
@@ -236,11 +234,10 @@ function buildContent(
     } else if (desc.type === 'spread') {
       const spread = new SpreadContent({ pageWidth: pageCW, pageHeight: pageCH });
       if (desc.image || desc.color) {
-        const tex = createPageTexture(
+        spread.source = createPageCanvas(
           desc.color ?? '#f5f5dc', desc.label, desc.image ?? null,
           desc.fitMode ?? 'cover', desc.fullBleed ?? false, pageWidth * 2, pageHeight, desc.imageRect,
         );
-        spread.source = (tex.image as HTMLCanvasElement) ?? null;
       }
       for (const t of desc.texts) {
         spread.addText(textDescriptorToOptions(t));

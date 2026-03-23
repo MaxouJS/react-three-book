@@ -15,10 +15,24 @@ import { useBook } from '../context';
  */
 export function useTextOverlay(options?: TextOverlayContentOptions): TextOverlayContent {
   const ref = useRef<TextOverlayContent | null>(null);
-  if (!ref.current) {
+  const dimsRef = useRef({ w: 0, h: 0 });
+
+  const w = options?.width ?? 512;
+  const h = options?.height ?? 512;
+
+  // Create on first call, or recreate when dimensions change (requires new canvas)
+  if (!ref.current || dimsRef.current.w !== w || dimsRef.current.h !== h) {
+    ref.current?.dispose();
     ref.current = new TextOverlayContent(options);
+    dimsRef.current = { w, h };
   }
   const overlay = ref.current;
+
+  // Sync source via setter (no recreation needed)
+  const source = options?.source ?? null;
+  if (overlay.source !== source) {
+    overlay.source = source;
+  }
 
   const book = useBook();
 

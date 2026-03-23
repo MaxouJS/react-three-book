@@ -57,8 +57,8 @@ importers:
   packages/react-three-book:
     devDependencies:
       '@objectifthunes/three-book':
-        specifier: ^0.5.3
-        version: 0.5.3(three@0.172.0)
+        specifier: ^0.5.4
+        version: 0.5.4(three@0.172.0)
       '@react-three/fiber':
         specifier: ^8.17.0
         version: 8.18.0(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.172.0)
@@ -376,6 +376,11 @@ packages:
 
   '@objectifthunes/three-book@0.5.3':
     resolution: {integrity: sha512-3p7+va5jujd2InsNGeT0srs2Mo/OEIkG+2cPpdTxhADaqVZznVAydxExuMwCe+xPUrNlhK3BdyVwWGb3/yYx8Q==}
+    peerDependencies:
+      three: '>=0.150.0'
+
+  '@objectifthunes/three-book@0.5.4':
+    resolution: {integrity: sha512-F13m4pYysnmAvacdOeOMWSbCJs6cvMKuDcKl/HQSr/L/i4XBizDSrF61WjL0BhNlOkDEsXQ+YcQP7Z9qyWXGfA==}
     peerDependencies:
       three: '>=0.150.0'
 
@@ -1637,6 +1642,10 @@ snapshots:
       three: 0.172.0
 
   '@objectifthunes/three-book@0.5.3(three@0.172.0)':
+    dependencies:
+      three: 0.172.0
+
+  '@objectifthunes/three-book@0.5.4(three@0.172.0)':
     dependencies:
       three: 0.172.0
 

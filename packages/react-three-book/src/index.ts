@@ -62,7 +62,7 @@ export { useBookContent } from './hooks/useBookContent';
 export { useTextOverlay } from './hooks/useTextOverlay';
 
 // ── Texture utilities ──────────────────────────────────────────────────────────
-export { drawImageWithFit, createPageTexture, computeDefaultImageRect, loadImage, PX_PER_UNIT } from './textureUtils';
+export { drawImageWithFit, createPageCanvas, createPageTexture, computeDefaultImageRect, loadImage, PX_PER_UNIT } from './textureUtils';
 export type { ImageFitMode, ImageRect, LoadedImage } from './textureUtils';
 
 // ── Core library (re-exported from @objectifthunes/three-book) ───────────────

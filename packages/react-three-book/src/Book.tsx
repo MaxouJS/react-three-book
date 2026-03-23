@@ -95,7 +95,11 @@ export const Book = forwardRef<ThreeBook, BookProps>(function Book(
       setReady(true);
       onBuiltRef.current?.(book);
     } catch (err) {
-      onErrorRef.current?.(err as Error);
+      if (onErrorRef.current) {
+        onErrorRef.current(err as Error);
+      } else {
+        console.error('react-three-book <Book>: init() failed', err);
+      }
     }
 
     return () => {

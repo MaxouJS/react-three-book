@@ -71,6 +71,8 @@ export function usePageTurning(
       canvas.removeEventListener('pointerdown', onDown);
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);
+      selectedRef.current = null;
+      isDownRef.current = false;
     };
   }, [gl, camera, bookRef, orbitControlsRef]);
 }

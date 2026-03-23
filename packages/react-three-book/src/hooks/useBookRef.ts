@@ -55,7 +55,11 @@ export function useBookRef(
       setReady(true);
       onBuiltRef.current?.(book);
     } catch (err) {
-      onErrorRef.current?.(err as Error);
+      if (onErrorRef.current) {
+        onErrorRef.current(err as Error);
+      } else {
+        console.error('react-three-book useBookRef: init() failed', err);
+      }
     }
 
     return () => {
