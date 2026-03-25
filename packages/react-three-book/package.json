@@ -1,6 +1,6 @@
 {
   "name": "@objectifthunes/react-three-book",
-  "version": "0.6.5",
+  "version": "0.6.6",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -8,28 +8,35 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./demo-kit": {
+      "import": "./demo-kit/dist/index.js",
+      "types": "./demo-kit/dist/index.d.ts"
     }
   },
   "files": [
     "dist",
+    "demo-kit/dist",
     "README.md"
   ],
   "scripts": {
     "build": "vite build",
+    "build:demo-kit": "cd demo-kit && vite build",
     "typecheck": "tsc --noEmit",
-    "prepack": "pnpm run build"
+    "prepack": "pnpm run build && pnpm run build:demo-kit"
   },
   "peerDependencies": {
-    "@objectifthunes/three-book": ">=0.5.0",
+    "@objectifthunes/three-book": ">=0.5.7",
     "@react-three/fiber": ">=8.0.0",
     "react": ">=18.0.0",
     "three": ">=0.150.0"
   },
   "devDependencies": {
-    "@objectifthunes/three-book": "^0.5.4",
+    "@objectifthunes/three-book": "^0.5.7",
     "@react-three/fiber": "^8.17.0",
     "@types/react": "^18.3.0",
     "@types/three": "^0.172.0",
+    "@vitejs/plugin-react": "^4.7.0",
     "react": "^18.3.0",
     "three": "^0.172.0",
     "typescript": "^5.7.0",

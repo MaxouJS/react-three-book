@@ -6,63 +6,10 @@ import BookScene from './components/BookScene';
 import LeftPanel from './components/LeftPanel';
 import RightPanel from './components/RightPanel';
 import PageEditor from './components/PageEditor';
-import { PANEL_STYLE } from './components/UiHelpers';
 
 const INITIAL_PAGE_SLOTS = 8;
 
 type Tab = 'book' | 'textures' | 'editor';
-
-const TAB_BTN: React.CSSProperties = {
-  flex: 1,
-  padding: '6px 0',
-  borderWidth: 1,
-  borderStyle: 'solid',
-  borderColor: 'rgba(236,242,255,0.15)',
-  borderRadius: 8,
-  background: 'rgba(255,255,255,0.04)',
-  color: 'rgba(236,242,255,0.55)',
-  fontFamily: 'inherit',
-  fontSize: 12,
-  fontWeight: 600,
-  cursor: 'pointer',
-};
-
-const TAB_BTN_ACTIVE: React.CSSProperties = {
-  ...TAB_BTN,
-  background: 'rgba(137,216,176,0.18)',
-  color: '#89d8b0',
-  borderColor: 'rgba(137,216,176,0.35)',
-};
-
-const TOGGLE_BTN: React.CSSProperties = {
-  position: 'fixed',
-  top: 14,
-  left: 14,
-  zIndex: 10,
-  padding: '8px 14px',
-  borderRadius: 10,
-  border: '1px solid rgba(236,242,255,0.2)',
-  background: 'rgba(8, 10, 18, 0.7)',
-  backdropFilter: 'blur(8px)',
-  color: '#ecf2ff',
-  fontFamily: "'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif",
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: 'pointer',
-  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
-};
-
-const CLOSE_BTN: React.CSSProperties = {
-  padding: '4px 8px',
-  border: '1px solid rgba(236,242,255,0.15)',
-  borderRadius: 6,
-  background: 'rgba(255,255,255,0.04)',
-  color: 'rgba(236,242,255,0.5)',
-  fontFamily: 'inherit',
-  fontSize: 14,
-  cursor: 'pointer',
-  lineHeight: 1,
-};
 
 export default function App() {
   const [params, setParams] = useState<DemoParams>(defaultParams);
@@ -154,31 +101,32 @@ export default function App() {
 
       {panelOpen ? (
         <div
-          style={{ ...PANEL_STYLE, left: 10, width: 'min(92vw, 380px)' }}
+          className="demo-panel"
+          style={{ left: 10, width: 'min(92vw, 380px)' }}
           onPointerDown={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+          <div className="demo-panel-header">
             <div>
-              <h1 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>react-three-book demo</h1>
-              <p style={{ margin: '3px 0 0', color: 'rgba(236,242,255,0.55)', fontSize: 11 }}>
+              <h1 className="demo-panel-title">react-three-book demo</h1>
+              <p className="demo-panel-subtitle">
                 Drag to turn · right-click + wheel to orbit
               </p>
             </div>
-            <button style={CLOSE_BTN} onClick={() => setPanelOpen(false)} title="Hide panel">
+            <button className="demo-close-btn" onClick={() => setPanelOpen(false)} title="Hide panel">
               {'\u2715'}
             </button>
           </div>
-          <div style={{ marginBottom: 8, color: '#8cf0bf', fontWeight: 700, fontSize: 12 }}>
+          <div className="demo-status">
             {status}
           </div>
 
           {/* Tab bar */}
-          <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+          <div className="demo-tab-bar">
             {(['book', 'textures', 'editor'] as Tab[]).map((tab) => (
               <button
                 key={tab}
-                style={activeTab === tab ? TAB_BTN_ACTIVE : TAB_BTN}
+                className={activeTab === tab ? 'demo-tab demo-tab--active' : 'demo-tab'}
                 onClick={() => setActiveTab(tab)}
               >
                 {tab === 'book' ? 'Book' : tab === 'textures' ? 'Textures' : 'Editor'}
@@ -198,7 +146,7 @@ export default function App() {
           </div>
         </div>
       ) : (
-        <button style={TOGGLE_BTN} onClick={() => setPanelOpen(true)}>
+        <button className="demo-toggle-btn" onClick={() => setPanelOpen(true)}>
           {'\u2630'} Panel
         </button>
       )}
@@ -206,8 +154,7 @@ export default function App() {
       {/* Info bar */}
       <div style={{
         position: 'fixed', bottom: 10, left: '50%', transform: 'translateX(-50%)',
-        color: '#9aa3bf', fontFamily: 'monospace', fontSize: 12, pointerEvents: 'none',
-      }}>
+      }} className="demo-info">
         Click + drag pages to turn | Orbit: right-click / scroll
       </div>
     </>

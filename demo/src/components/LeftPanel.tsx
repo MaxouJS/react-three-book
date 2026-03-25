@@ -6,14 +6,14 @@
 import type { RefObject } from 'react';
 import type { ThreeBook } from '@objectifthunes/react-three-book';
 import type { DemoParams, DirectionOption } from '../state';
-import { FONT_OPTIONS } from '../state';
 import {
   SectionTitle,
   Slider,
   ColorPicker,
   Checkbox,
   Select,
-} from './UiHelpers';
+  FONT_OPTIONS,
+} from '@objectifthunes/react-three-book/demo-kit';
 
 interface LeftPanelProps {
   params: DemoParams;
@@ -101,19 +101,7 @@ export default function LeftPanel({
 
       <button
         onClick={onRebuild}
-        style={{
-          width: '100%',
-          marginTop: 6,
-          padding: 8,
-          cursor: 'pointer',
-          background: 'linear-gradient(135deg, #28895e 0%, #216e4c 100%)',
-          color: '#f0fffa',
-          border: 'none',
-          borderRadius: 10,
-          fontFamily: 'inherit',
-          fontSize: 13,
-          fontWeight: 700,
-        }}
+        className="demo-btn--rebuild"
       >
         Force Rebuild
       </button>

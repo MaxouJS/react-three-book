@@ -45,20 +45,6 @@ interface DragState {
 
 const DISPLAY_MAX = 360;
 
-const BTN: React.CSSProperties = {
-  padding: '4px 10px', borderRadius: 6,
-  border: '1px solid rgba(236,242,255,0.22)',
-  background: 'rgba(255,255,255,0.08)',
-  color: '#eef4ff', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer',
-};
-
-const MINI_SELECT: React.CSSProperties = {
-  padding: '3px 6px', borderRadius: 6,
-  border: '1px solid rgba(236,242,255,0.22)',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#eef4ff', fontSize: 11, fontFamily: 'inherit',
-};
-
 const COVER_LABELS = ['Front Cover Outer', 'Front Cover Inner', 'Back Cover Inner', 'Back Cover Outer'];
 
 // Offscreen context for TextBlock measurement (font metrics only).
@@ -404,19 +390,20 @@ export default function PageEditor({
   return (
     <>
       {/* Surface selector */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <button style={BTN} onClick={() => { if (surface > 0) setCurrentSurface(surface - 1); }}>{'\u25C0'}</button>
+      <div className="demo-page-nav">
+        <button className="demo-btn" onClick={() => { if (surface > 0) setCurrentSurface(surface - 1); }}>{'\u25C0'}</button>
         <span style={{ flex: 1, fontWeight: 600, fontSize: 12, textAlign: 'center' }}>
-          {surfaceLabel} <span style={{ opacity: 0.5, fontWeight: 400 }}>({surface + 1}/{totalSurfaces})</span>
+          {surfaceLabel} <span className="demo-page-count">({surface + 1}/{totalSurfaces})</span>
         </span>
-        <button style={BTN} onClick={() => { if (surface < totalSurfaces - 1) setCurrentSurface(surface + 1); }}>{'\u25B6'}</button>
+        <button className="demo-btn" onClick={() => { if (surface < totalSurfaces - 1) setCurrentSurface(surface + 1); }}>{'\u25B6'}</button>
       </div>
 
       {/* Toolbar row 1: font family + size */}
       <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 4 }}>
         <select
           value={selected?.fontFamily ?? ''}
-          style={{ ...MINI_SELECT, flex: 1, minWidth: 0 }}
+          className="demo-select demo-select--mini"
+          style={{ flex: 1, minWidth: 0 }}
           onChange={(e) => updateSelected({ fontFamily: e.target.value })}
           disabled={!selected}
         >
@@ -427,7 +414,8 @@ export default function PageEditor({
         <input
           type="number" min={8} max={120}
           value={selected?.fontSize ?? 22}
-          style={{ ...MINI_SELECT, width: 52 }}
+          className="demo-select demo-select--mini"
+          style={{ width: 52 }}
           onChange={(e) => updateSelected({ fontSize: parseInt(e.target.value, 10) || 22 })}
           disabled={!selected}
         />
@@ -436,13 +424,15 @@ export default function PageEditor({
       {/* Toolbar row 2: style + alignment */}
       <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 8 }}>
         <button
-          style={{ ...BTN, fontWeight: 'bold', width: 32, padding: '4px 0', background: selected?.fontWeight === 'bold' ? 'rgba(137,216,176,0.3)' : BTN.background }}
+          className={selected?.fontWeight === 'bold' ? 'demo-btn demo-btn--active' : 'demo-btn'}
+          style={{ fontWeight: 'bold', width: 32, padding: '4px 0' }}
           onClick={() => updateSelected({ fontWeight: selected?.fontWeight === 'bold' ? 'normal' : 'bold' })}
           disabled={!selected}
         >B</button>
 
         <button
-          style={{ ...BTN, fontStyle: 'italic', width: 32, padding: '4px 0', background: selected?.fontStyle === 'italic' ? 'rgba(137,216,176,0.3)' : BTN.background }}
+          className={selected?.fontStyle === 'italic' ? 'demo-btn demo-btn--active' : 'demo-btn'}
+          style={{ fontStyle: 'italic', width: 32, padding: '4px 0' }}
           onClick={() => updateSelected({ fontStyle: selected?.fontStyle === 'italic' ? 'normal' : 'italic' })}
           disabled={!selected}
         >I</button>
@@ -461,7 +451,8 @@ export default function PageEditor({
         {(['left', 'center', 'right'] as const).map((a) => (
           <button
             key={a}
-            style={{ ...BTN, width: 32, padding: '4px 0', background: selected?.textAlign === a ? 'rgba(137,216,176,0.3)' : BTN.background }}
+            className={selected?.textAlign === a ? 'demo-btn demo-btn--active' : 'demo-btn'}
+            style={{ width: 32, padding: '4px 0' }}
             onClick={() => updateSelected({ textAlign: a })}
             disabled={!selected}
             title={a}
@@ -473,7 +464,8 @@ export default function PageEditor({
         <div style={{ flex: 1 }} />
 
         <button
-          style={{ ...BTN, padding: '4px 8px', fontSize: 11, opacity: selectedIdx < 0 ? 0.35 : 1 }}
+          className="demo-btn"
+          style={{ padding: '4px 8px', fontSize: 11, opacity: selectedIdx < 0 ? 0.35 : 1 }}
           disabled={selectedIdx < 0}
           onClick={() => {
             updateBlocks((arr) => arr.filter((_, j) => j !== selectedIdx));
@@ -488,11 +480,8 @@ export default function PageEditor({
           ref={canvasRef}
           width={displayW}
           height={displayH}
-          style={{
-            display: 'block', borderRadius: 8, cursor: 'default',
-            border: '1px solid rgba(236,242,255,0.12)',
-            maxWidth: '100%',
-          }}
+          className="demo-editor-canvas"
+          style={{ maxWidth: '100%' }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -502,7 +491,7 @@ export default function PageEditor({
       {/* Action row */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
         <button
-          style={{ ...BTN, flex: 1 }}
+          className="demo-btn demo-btn--block"
           onClick={() => {
             const w = isCover ? params.coverWidth : (isSpreadMode ? params.pageWidth * 2 : params.pageWidth);
             const h = isCover ? params.coverHeight : params.pageHeight;

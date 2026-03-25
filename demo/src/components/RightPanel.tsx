@@ -7,7 +7,7 @@ import { useCallback } from 'react';
 import { drawImageWithFit, loadImage, getSpreadPairs, computeDefaultImageRect } from '@objectifthunes/react-three-book';
 import type { ImageSlot, ImageFitMode, DemoParams } from '../state';
 import { PX_PER_UNIT } from '../state';
-import { SectionTitle } from './UiHelpers';
+import { SectionTitle } from '@objectifthunes/react-three-book/demo-kit';
 
 interface RightPanelProps {
   params: DemoParams;
@@ -35,10 +35,6 @@ function renderThumbnail(slot: ImageSlot, color: string, aspectW: number, aspect
   return canvas.toDataURL();
 }
 
-const CARD_STYLE: React.CSSProperties = { margin: '0 0 8px', padding: 10, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(236,242,255,0.12)' };
-const MINI_BTN: React.CSSProperties = { padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(236,242,255,0.22)', background: 'rgba(255,255,255,0.08)', color: '#eef4ff', fontFamily: 'inherit', fontSize: 11, cursor: 'pointer' };
-const MINI_SELECT: React.CSSProperties = { padding: '3px 6px', borderRadius: 6, border: '1px solid rgba(236,242,255,0.22)', background: 'rgba(255,255,255,0.06)', color: '#eef4ff', fontSize: 11, fontFamily: 'inherit' };
-
 interface TextureCardProps {
   label: string; slot: ImageSlot; bgColor: string;
   aspectW: number; aspectH: number;
@@ -52,26 +48,24 @@ function TextureCard({ label, slot, bgColor, aspectW, aspectH, onFitModeChange, 
   const thumbH = 64;
   const thumbW = Math.round(thumbH * (aspectW / aspectH));
   return (
-    <div style={CARD_STYLE}>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-        <img src={renderThumbnail(slot, bgColor, aspectW, aspectH)} alt={label} style={{ width: thumbW, height: thumbH, borderRadius: 6, objectFit: 'cover', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(236,242,255,0.15)', flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6, color: 'rgba(236,242,255,0.92)' }}>{label}</div>
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-            <select value={slot.fitMode} style={MINI_SELECT} onChange={(e) => onFitModeChange(e.target.value as ImageFitMode)}>
+    <div className="demo-card">
+      <div className="demo-card-row">
+        <img src={renderThumbnail(slot, bgColor, aspectW, aspectH)} alt={label} className="demo-thumb" style={{ width: thumbW, height: thumbH }} />
+        <div className="demo-card-body">
+          <div className="demo-card-label">{label}</div>
+          <div className="demo-card-controls">
+            <select value={slot.fitMode} className="demo-select demo-select--mini" onChange={(e) => onFitModeChange(e.target.value as ImageFitMode)}>
               <option value="contain">Contain</option>
               <option value="cover">Cover</option>
               <option value="fill">Fill</option>
             </select>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'rgba(236,242,255,0.78)', cursor: 'pointer' }}>
-              <input type="checkbox" checked={slot.fullBleed} style={{ width: 13, height: 13 }} onChange={(e) => onFullBleedChange(e.target.checked)} />
+            <label className="demo-inline-label">
+              <input type="checkbox" checked={slot.fullBleed} className="demo-checkbox--sm" onChange={(e) => onFullBleedChange(e.target.checked)} />
               Bleed
             </label>
-            <button type="button" style={MINI_BTN} onClick={onClear}>Clear</button>
+            <button type="button" className="demo-btn" onClick={onClear}>Clear</button>
           </div>
-          <div style={{ marginTop: 5 }}>
-            <input type="file" accept="image/*" style={{ width: '100%', fontSize: 11, color: 'rgba(236,242,255,0.76)' }} onChange={(e) => onFileChange(e.target.files?.[0] ?? null)} />
-          </div>
+          <input type="file" accept="image/*" className="demo-file-input" onChange={(e) => onFileChange(e.target.files?.[0] ?? null)} />
         </div>
       </div>
     </div>
@@ -135,11 +129,11 @@ export default function RightPanel({ params, coverSlots, pageSlots, spreadPages,
     // Spread checkbox for eligible pairs
     if (eligibleSpreads.has(i)) {
       pageCards.push(
-        <label key={`spread-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '6px 0 4px', fontSize: 11, color: 'rgba(236,242,255,0.82)', cursor: 'pointer' }}>
+        <label key={`spread-${i}`} className="demo-spread-toggle">
           <input
             type="checkbox"
             checked={isSpread}
-            style={{ width: 14, height: 14 }}
+            className="demo-spread-checkbox"
             onChange={(e) => {
               const next = new Set(spreadPages);
               if (e.target.checked) next.add(i); else next.delete(i);

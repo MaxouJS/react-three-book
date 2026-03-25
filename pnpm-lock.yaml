@@ -11,11 +11,11 @@ importers:
   demo:
     dependencies:
       '@objectifthunes/react-three-book':
-        specifier: ^0.6.4
-        version: 0.6.4(@objectifthunes/three-book@0.5.3(three@0.172.0))(@react-three/fiber@8.18.0(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.172.0))(react@18.3.1)(three@0.172.0)
+        specifier: ^0.6.6
+        version: 0.6.6(@objectifthunes/three-book@0.5.7(three@0.172.0))(@react-three/fiber@8.18.0(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.172.0))(react@18.3.1)(three@0.172.0)
       '@objectifthunes/three-book':
-        specifier: ^0.5.3
-        version: 0.5.3(three@0.172.0)
+        specifier: ^0.5.7
+        version: 0.5.7(three@0.172.0)
       '@react-three/drei':
         specifier: ^9.115.0
         version: 9.122.0(@react-three/fiber@8.18.0(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.172.0))(@types/react@18.3.28)(@types/three@0.172.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.172.0)(use-sync-external-store@1.6.0(react@18.3.1))
@@ -57,8 +57,8 @@ importers:
   packages/react-three-book:
     devDependencies:
       '@objectifthunes/three-book':
-        specifier: ^0.5.4
-        version: 0.5.4(three@0.172.0)
+        specifier: ^0.5.7
+        version: 0.5.7(three@0.172.0)
       '@react-three/fiber':
         specifier: ^8.17.0
         version: 8.18.0(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.172.0)
@@ -68,6 +68,9 @@ importers:
       '@types/three':
         specifier: ^0.172.0
         version: 0.172.0
+      '@vitejs/plugin-react':
+        specifier: ^4.7.0
+        version: 4.7.0(vite@6.4.1)
       react:
         specifier: ^18.3.0
         version: 18.3.1
@@ -366,21 +369,16 @@ packages:
     peerDependencies:
       three: '>= 0.159.0'
 
-  '@objectifthunes/react-three-book@0.6.4':
-    resolution: {integrity: sha512-FsVEJAcbmonCKGwl6aY//Y3ZN2WiUa6fwF9MoCGx/QEzmn9xzbY+yxcktcaUhmkJSlR1NG2HeDQwM+LBbGvIjQ==}
+  '@objectifthunes/react-three-book@0.6.6':
+    resolution: {integrity: sha512-+yVdXBlgOiMLi4mQJnsCLhKDLyW7fbE/23tSi5x+4FBllzU28dz30orO5kzoyPmT7rcTKD8leiSuBghMDT3piQ==}
     peerDependencies:
-      '@objectifthunes/three-book': '>=0.5.0'
+      '@objectifthunes/three-book': '>=0.5.7'
       '@react-three/fiber': '>=8.0.0'
       react: '>=18.0.0'
       three: '>=0.150.0'
 
-  '@objectifthunes/three-book@0.5.3':
-    resolution: {integrity: sha512-3p7+va5jujd2InsNGeT0srs2Mo/OEIkG+2cPpdTxhADaqVZznVAydxExuMwCe+xPUrNlhK3BdyVwWGb3/yYx8Q==}
-    peerDependencies:
-      three: '>=0.150.0'
-
-  '@objectifthunes/three-book@0.5.4':
-    resolution: {integrity: sha512-F13m4pYysnmAvacdOeOMWSbCJs6cvMKuDcKl/HQSr/L/i4XBizDSrF61WjL0BhNlOkDEsXQ+YcQP7Z9qyWXGfA==}
+  '@objectifthunes/three-book@0.5.7':
+    resolution: {integrity: sha512-NbxdX2TdgFDSStPfshbS4P6yNX87x+40PPcKWs/RrN7lYFK+cM7aulYbmVrKzKAsjDIieEJgFjwals4OnN3wqw==}
     peerDependencies:
       three: '>=0.150.0'
 
@@ -1634,18 +1632,14 @@ snapshots:
       promise-worker-transferable: 1.0.4
       three: 0.172.0
 
-  '@objectifthunes/react-three-book@0.6.4(@objectifthunes/three-book@0.5.3(three@0.172.0))(@react-three/fiber@8.18.0(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.172.0))(react@18.3.1)(three@0.172.0)':
+  '@objectifthunes/react-three-book@0.6.6(@objectifthunes/three-book@0.5.7(three@0.172.0))(@react-three/fiber@8.18.0(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.172.0))(react@18.3.1)(three@0.172.0)':
     dependencies:
-      '@objectifthunes/three-book': 0.5.3(three@0.172.0)
+      '@objectifthunes/three-book': 0.5.7(three@0.172.0)
       '@react-three/fiber': 8.18.0(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.172.0)
       react: 18.3.1
       three: 0.172.0
 
-  '@objectifthunes/three-book@0.5.3(three@0.172.0)':
-    dependencies:
-      three: 0.172.0
-
-  '@objectifthunes/three-book@0.5.4(three@0.172.0)':
+  '@objectifthunes/three-book@0.5.7(three@0.172.0)':
     dependencies:
       three: 0.172.0
 
