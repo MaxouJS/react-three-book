@@ -16,7 +16,7 @@ import {
   Text,
 } from '@objectifthunes/react-three-book';
 import type { ThreeBook } from '@objectifthunes/react-three-book';
-import { DIRECTION_TO_BOOK_DIRECTION, type DemoParams, type ImageSlot, type PageTextBlock } from '../state';
+import { DIRECTION_TO_BOOK_DIRECTION, DEMO_SHADOW_COLOR, DEMO_SHADOW_BLUR, type DemoParams, type ImageSlot, type PageTextBlock } from '../state';
 
 interface BookSceneProps {
   params: DemoParams;
@@ -63,8 +63,8 @@ export default function BookScene({
               fontStyle={b.fontStyle}
               color={b.color}
               textAlign={b.textAlign}
-              shadowColor="rgba(255,255,255,0.6)"
-              shadowBlur={3}
+              shadowColor={DEMO_SHADOW_COLOR}
+              shadowBlur={DEMO_SHADOW_BLUR}
             >
               {b.text}
             </Text>
@@ -98,8 +98,8 @@ export default function BookScene({
             fontStyle={b.fontStyle}
             color={b.color}
             textAlign={b.textAlign}
-            shadowColor="rgba(255,255,255,0.6)"
-            shadowBlur={3}
+            shadowColor={DEMO_SHADOW_COLOR}
+            shadowBlur={DEMO_SHADOW_BLUR}
           >
             {b.text}
           </Text>
@@ -172,8 +172,8 @@ export default function BookScene({
                   fontStyle={b.fontStyle}
                   color={b.color}
                   textAlign={b.textAlign}
-                  shadowColor="rgba(255,255,255,0.6)"
-                  shadowBlur={3}
+                  shadowColor={DEMO_SHADOW_COLOR}
+                  shadowBlur={DEMO_SHADOW_BLUR}
                 >
                   {b.text}
                 </Text>

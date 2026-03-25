@@ -1,5 +1,7 @@
 import { BookDirection, PX_PER_UNIT } from '@objectifthunes/react-three-book';
 import type { ImageFitMode, ImageRect } from '@objectifthunes/react-three-book';
+export { DEMO_SHADOW_COLOR, DEMO_SHADOW_BLUR, DEFAULT_LINE_HEIGHT, DEFAULT_FONT_SIZE, DEFAULT_TEXT_COLOR } from '@objectifthunes/react-three-book/demo-kit';
+import { DEFAULT_FONT_SIZE, DEFAULT_TEXT_COLOR } from '@objectifthunes/react-three-book/demo-kit';
 
 export type { ImageFitMode, ImageRect };
 export { PX_PER_UNIT };
@@ -52,10 +54,10 @@ export function createDefaultTextBlock(pageWidth: number, pageHeight: number): P
     y: Math.round(ch * 0.55),
     width: Math.round(cw * 0.88),
     fontFamily: '',
-    fontSize: 22,
+    fontSize: DEFAULT_FONT_SIZE,
     fontWeight: 'normal',
     fontStyle: 'normal',
-    color: '#1a1a1a',
+    color: DEFAULT_TEXT_COLOR,
     textAlign: 'left',
   };
 }

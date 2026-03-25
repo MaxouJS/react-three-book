@@ -41,6 +41,16 @@ interface TextDescriptor {
   opacity?: number;
   shadowColor?: string;
   shadowBlur?: number;
+  shadowOffsetX?: number;
+  shadowOffsetY?: number;
+  textTransform?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+  textDecoration?: 'none' | 'underline' | 'strikethrough';
+  background?: string;
+  backgroundPadding?: number;
+  maxLines?: number;
+  height?: number;
+  verticalAlign?: 'top' | 'middle' | 'bottom';
+  rotation?: number;
 }
 
 interface ContentDescriptor {
@@ -77,6 +87,16 @@ function extractTexts(children: ReactNode): TextDescriptor[] {
       opacity: el.props.opacity,
       shadowColor: el.props.shadowColor,
       shadowBlur: el.props.shadowBlur,
+      shadowOffsetX: el.props.shadowOffsetX,
+      shadowOffsetY: el.props.shadowOffsetY,
+      textTransform: el.props.textTransform,
+      textDecoration: el.props.textDecoration,
+      background: el.props.background,
+      backgroundPadding: el.props.backgroundPadding,
+      maxLines: el.props.maxLines,
+      height: el.props.height,
+      verticalAlign: el.props.verticalAlign,
+      rotation: el.props.rotation,
     });
   });
   return texts;
@@ -266,6 +286,16 @@ function textDescriptorToOptions(t: TextDescriptor): TextBlockOptions {
   if (t.opacity !== undefined) opts.opacity = t.opacity;
   if (t.shadowColor !== undefined) opts.shadowColor = t.shadowColor;
   if (t.shadowBlur !== undefined) opts.shadowBlur = t.shadowBlur;
+  if (t.shadowOffsetX !== undefined) opts.shadowOffsetX = t.shadowOffsetX;
+  if (t.shadowOffsetY !== undefined) opts.shadowOffsetY = t.shadowOffsetY;
+  if (t.textTransform !== undefined) opts.textTransform = t.textTransform;
+  if (t.textDecoration !== undefined) opts.textDecoration = t.textDecoration;
+  if (t.background !== undefined) opts.background = t.background;
+  if (t.backgroundPadding !== undefined) opts.backgroundPadding = t.backgroundPadding;
+  if (t.maxLines !== undefined) opts.maxLines = t.maxLines;
+  if (t.height !== undefined) opts.height = t.height;
+  if (t.verticalAlign !== undefined) opts.verticalAlign = t.verticalAlign;
+  if (t.rotation !== undefined) opts.rotation = t.rotation;
   return opts;
 }
 

@@ -23,6 +23,26 @@ export interface TextProps {
   opacity?: number;
   shadowColor?: string;
   shadowBlur?: number;
+  /** Horizontal shadow offset in pixels (default 0). */
+  shadowOffsetX?: number;
+  /** Vertical shadow offset in pixels (default 0). */
+  shadowOffsetY?: number;
+  /** Text case transformation (default 'none'). */
+  textTransform?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+  /** Text decoration (default 'none'). */
+  textDecoration?: 'none' | 'underline' | 'strikethrough';
+  /** Background fill color behind text (default '' = none). */
+  background?: string;
+  /** Padding around text for background box in pixels (default 0). */
+  backgroundPadding?: number;
+  /** Maximum visible lines, 0 = unlimited (default 0). Truncated with '…'. */
+  maxLines?: number;
+  /** Container height for vertical alignment, 0 = auto (default 0). */
+  height?: number;
+  /** Vertical alignment within height (default 'top'). */
+  verticalAlign?: 'top' | 'middle' | 'bottom';
+  /** Rotation in radians around text block center (default 0). */
+  rotation?: number;
   children: string;
 }
 

@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TextBlock, drawImageWithFit } from '@objectifthunes/react-three-book';
 import type { DemoParams, ImageSlot, ImageRect, PageTextBlock } from '../state';
-import { FONT_OPTIONS, createDefaultTextBlock, PX_PER_UNIT } from '../state';
+import { FONT_OPTIONS, createDefaultTextBlock, PX_PER_UNIT, DEMO_SHADOW_COLOR, DEMO_SHADOW_BLUR, DEFAULT_LINE_HEIGHT, DEFAULT_FONT_SIZE, DEFAULT_TEXT_COLOR } from '../state';
 
 interface PageEditorProps {
   params: DemoParams;
@@ -123,9 +123,9 @@ export default function PageEditor({
       text: b.text, x: b.x, y: b.y, width: b.width,
       fontFamily: b.fontFamily || params.bookFont,
       fontSize: b.fontSize, fontWeight: b.fontWeight, fontStyle: b.fontStyle,
-      lineHeight: 1.4,
+      lineHeight: DEFAULT_LINE_HEIGHT,
     });
-    return Math.max(tb.measureHeight(measureCtx), b.fontSize * 1.4);
+    return Math.max(tb.measureHeight(measureCtx), b.fontSize * DEFAULT_LINE_HEIGHT);
   }, [params.bookFont]);
 
   // Immutable update helpers
@@ -216,8 +216,8 @@ export default function PageEditor({
           text: b.text, x: b.x, y: b.y, width: b.width,
           fontFamily: b.fontFamily || params.bookFont,
           fontSize: b.fontSize, fontWeight: b.fontWeight, fontStyle: b.fontStyle,
-          color: b.color, textAlign: b.textAlign, lineHeight: 1.4,
-          shadowColor: 'rgba(255,255,255,0.6)', shadowBlur: 3,
+          color: b.color, textAlign: b.textAlign, lineHeight: DEFAULT_LINE_HEIGHT,
+          shadowColor: DEMO_SHADOW_COLOR, shadowBlur: DEMO_SHADOW_BLUR,
         });
         tb.draw(ctx);
       }
@@ -413,10 +413,10 @@ export default function PageEditor({
 
         <input
           type="number" min={8} max={120}
-          value={selected?.fontSize ?? 22}
+          value={selected?.fontSize ?? DEFAULT_FONT_SIZE}
           className="demo-select demo-select--mini"
           style={{ width: 52 }}
-          onChange={(e) => updateSelected({ fontSize: parseInt(e.target.value, 10) || 22 })}
+          onChange={(e) => updateSelected({ fontSize: parseInt(e.target.value, 10) || DEFAULT_FONT_SIZE })}
           disabled={!selected}
         />
       </div>
@@ -439,7 +439,7 @@ export default function PageEditor({
 
         <div style={{ width: 32, height: 28, borderRadius: 6, border: '1px solid rgba(236,242,255,0.22)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.08)' }}>
           <input
-            type="color" value={selected?.color ?? '#1a1a1a'}
+            type="color" value={selected?.color ?? DEFAULT_TEXT_COLOR}
             style={{ width: 40, height: 40, border: 'none', background: 'none', cursor: 'pointer', margin: -6 }}
             onChange={(e) => updateSelected({ color: e.target.value })}
             disabled={!selected}
